@@ -1,1 +1,1 @@
-python test.py --ckpt all
+python test.py
