@@ -4,6 +4,7 @@ from PIL import Image
 
 # import pdb
 
+
 def TensorNoiseLevel(t, PatchSize=32, use_GPU=False):
 	'''
 		input: t -- 2-dimensions tensor
@@ -29,18 +30,62 @@ def TensorNoiseLevel(t, PatchSize=32, use_GPU=False):
 	# [Real, Image] Eigen Values
 	sigmas, _ = eigvals[0 : PatchSize * PatchSize, 0].sort()
 
-	return max(sigmas.median(), 0.0).sqrt().item()
+	# Calibration ...
+	output = sigmas.clamp(0.0, 100.0)
+	output = output.sqrt()
+	output = output * 255.0
+	x = output[PatchSize//4].item()
+	index = PatchSize//2
+	if x < 5.0:
+		index = PatchSize//32
+	if x < 10.0:
+		index = PatchSize//16
+	if x < 20.0:
+		index = PatchSize//8
+	if x < 40.0:
+		index = PatchSize//4
+	if x < 80.0:
+		index = PatchSize//2
+	# x >= 80.0, ==> index == PatchSize // 2
+	x = output[index].item()
+	y = x - 1.0
+	if x < 40.0:
+		y = y - 1.0
+	if x < 20.0:
+		y = y - 2.0
+	if x < 10.0:
+		y = y - 3.0
+
+	return max(y, 0.0)
 
 
 def ImageNoiseLevel(image_filename):
 	img = Image.open(image_filename).convert('L')
 	t = transforms.ToTensor()(img)
 	t = t.squeeze(0)
-	for i in range(1, 100):
-		sigma = TensorNoiseLevel(t + i * torch.randn(t.size()))
-		print("{} Noise Level: {:.4f} {:.4f}".format(image_filename, i, sigma))
+	for i in range(0, 90, 5):
+		std = i / 255.0
+		noise = t + std * torch.randn(t.size())
+		sigma = TensorNoiseLevel(noise)
+
+		# if abs(i - sigma) > 1.0:
+		print("{} Noise Level: Real is {:.4f}, Estimate is {:.4f}".format(image_filename, i, sigma))
+		# if i % 5 == 0:
+		# 	noise = noise.unsqueeze(0)
+		# 	noise = transforms.ToPILImage()(noise)
+		# 	noise.show()
+
 
 
 if __name__ == '__main__':
 	ImageNoiseLevel("test/input/01_noise.png")
-	ImageNoiseLevel("/tmp/bag.png")
+	ImageNoiseLevel("test/input/02_noise.png")
+	ImageNoiseLevel("test/input/03_noise.png")
+	ImageNoiseLevel("test/input/04_noise.png")
+	ImageNoiseLevel("test/input/05_noise.png")
+	ImageNoiseLevel("test/input/06_noise.png")
+	ImageNoiseLevel("test/input/07_noise.png")
+	ImageNoiseLevel("test/input/08_noise.png")
+	ImageNoiseLevel("test/input/09_noise.png")
+
+	# ImageNoiseLevel("/tmp/bag.png")
