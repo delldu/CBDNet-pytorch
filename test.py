@@ -53,7 +53,8 @@ for index, filename in enumerate(image_filenames):
         input_tensor = input_tensor.cuda()
 
     with torch.no_grad():
-        output_tensor = model(input_tensor).clamp(0, 1.0)
+        _, output_tensor = model(input_tensor)
+    output_tensor = output_tensor.clamp(0, 1.0)
 
     temp = torch.cat((input_tensor.squeeze(), output_tensor.squeeze()), 2).cpu()
     toimage(temp).save(result_dir + os.path.basename(filename))

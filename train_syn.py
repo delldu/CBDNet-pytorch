@@ -11,6 +11,7 @@ import cv2
 
 from utils import *
 from model import *
+import torchvision
 
 
 def load_CRF():
@@ -147,6 +148,11 @@ if __name__ == '__main__':
                 input_var, target_var, noise_level_var = input_var.cuda(), target_var.cuda(), noise_level_var.cuda()
 
                 noise_level_est, output = model(input_var)
+                # torchvision.utils.save_image(input_var, "/tmp/input_var.png")
+                # torchvision.utils.save_image(noise_level_est, "/tmp/noise_level_est.png")
+                # torchvision.utils.save_image(noise_level_var, "/tmp/noise_level_var.png")
+                # torchvision.utils.save_image(output, "/tmp/output.png")
+                # pdb.set_trace()
 
                 # forward(self, out_image, gt_image, est_noise, gt_noise, if_asym)
                 loss = criterion(output, target_var, noise_level_est, noise_level_var, 1)
@@ -173,7 +179,7 @@ if __name__ == '__main__':
                     output_np = chw_to_hwc(np.clip(output_np, 0, 1))
 
                     temp = np.concatenate((temp_origin_img, temp_noise_img, output_np), axis=1)
-                    scipy.misc.toimage(temp*255, high=255, low=0, cmin=0, cmax=255).save(result_dir + '%04d/train_%d_%d.jpg'%(epoch, ind, nind))
+                    # scipy.misc.toimage(temp*255, high=255, low=0, cmin=0, cmax=255).save(result_dir + '%04d/train_%d_%d.jpg'%(epoch, ind, nind))
         
         save_checkpoint({
             'epoch': epoch + 1,

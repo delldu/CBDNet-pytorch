@@ -121,9 +121,9 @@ class CBDNet(nn.Module):
         x = self.US01_layer02(x)
         y = torch.add(input, 1, x)
         
-        del x, noise_level, down1_result, down2_result
+        del x, down1_result, down2_result
 
-        return y
+        return noise_level, y
 
 
 class fixed_loss(nn.Module):

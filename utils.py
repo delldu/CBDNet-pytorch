@@ -181,6 +181,14 @@ def Demosaic(B_b, pattern):
         lin_rgb = B_b
 
     lin_rgb = lin_rgb[:, :, ::-1] / 255.
+
+    # pdb.set_trace()
+    # pattern = 2
+    # (Pdb) pp B_b.shape
+    # (512, 512)
+    # (Pdb) pp lin_rgb.shape
+    # (512, 512, 3)
+
     return lin_rgb
 
 
@@ -199,6 +207,23 @@ def AddNoiseMosai(x,
     w, h, c = x.shape
     temp_x = CRF_Map_opt(x, iCRF_para[crf_index])
 
+    # pdb.set_trace()
+    # (Pdb) pp x.shape
+    # (512, 512, 3)
+
+    # (Pdb) pp CRF_para.shape
+    # (201, 1)
+    # (Pdb) pp CRF_para.mean()
+    # 0.5285327803038496
+    # (Pdb) pp CRF_para.std()
+    # 0.3079649125807247
+
+    # CRF_para*iCRF_para == 1
+    # (Pdb) pp B.shape
+    # (201, 1024)
+    # (Pdb) pp I.shape
+    # (201, 1024)
+
     sigma_s = np.reshape(sigma_s, (1, 1, c))
     noise_s_map = np.multiply(sigma_s, temp_x)
     noise_s = np.random.randn(w, h, c) * noise_s_map
@@ -212,11 +237,23 @@ def AddNoiseMosai(x,
     temp_x_n = np.clip(temp_x_n, 0.0, 1.0)
     temp_x_n = CRF_Map_opt(temp_x_n, CRF_para[crf_index])
 
+    # pdb.set_trace()
+    # (Pdb) pp temp_x_n.shape
+    # (512, 512, 3)
+
     if opt == 1:
         temp_x = CRF_Map_opt(temp_x, CRF_para[crf_index])
 
     B_b_n = mosaic_bayer(temp_x_n[:, :, ::-1], pattern, 0)[0]
+    # pdb.set_trace()
+    # (Pdb) pp B_b_n.shape
+    # (512, 512)
+
     lin_rgb_n = Demosaic(B_b_n, pattern)
+    # pdb.set_trace()
+    # (Pdb) lin_rgb.shape
+    # (512, 512, 3)    
+
     result = lin_rgb_n
     if opt == 1:
         B_b = mosaic_bayer(temp_x[:, :, ::-1], pattern, 0)[0]
@@ -224,12 +261,18 @@ def AddNoiseMosai(x,
         diff = lin_rgb_n - lin_rgb
         result = x + diff
 
+    # pdb.set_trace()
+    # (Pdb) pp result.shape
+    # (512, 512, 3)
+
     return result
 
 
 def AddRealNoise(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl):
+    # array([0.0923482, 0.0048792, 0.1523728])
     sigma_s = np.random.uniform(0.0, 0.16, (3, ))
     sigma_c = np.random.uniform(0.0, 0.06, (3, ))
+
     CRF_index = np.random.choice(201)
     pattern = np.random.choice(4) + 1
     noise_img = AddNoiseMosai(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl,
@@ -237,6 +280,6 @@ def AddRealNoise(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl):
                               0)
     noise_level = sigma_s * np.power(image, 0.5) + sigma_c
 
-    pdb.set_trace()
+    # pdb.set_trace()
 
     return noise_img, noise_level
