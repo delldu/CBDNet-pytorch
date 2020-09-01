@@ -78,14 +78,14 @@ def ImageNoiseLevel(image_filename):
 
 
 if __name__ == '__main__':
-	ImageNoiseLevel("test/input/01_noise.png")
-	ImageNoiseLevel("test/input/02_noise.png")
-	ImageNoiseLevel("test/input/03_noise.png")
-	ImageNoiseLevel("test/input/04_noise.png")
-	ImageNoiseLevel("test/input/05_noise.png")
-	ImageNoiseLevel("test/input/06_noise.png")
-	ImageNoiseLevel("test/input/07_noise.png")
-	ImageNoiseLevel("test/input/08_noise.png")
-	ImageNoiseLevel("test/input/09_noise.png")
+	ImageNoiseLevel("test/output/01_noise.png")
+	ImageNoiseLevel("test/output/02_noise.png")
+	ImageNoiseLevel("test/output/03_noise.png")
+	ImageNoiseLevel("test/output/04_noise.png")
+	ImageNoiseLevel("test/output/05_noise.png")
+	ImageNoiseLevel("test/output/06_noise.png")
+	ImageNoiseLevel("test/output/07_noise.png")
+	ImageNoiseLevel("test/output/08_noise.png")
+	ImageNoiseLevel("test/output/09_noise.png")
 
 	# ImageNoiseLevel("/tmp/bag.png")
