@@ -135,6 +135,7 @@ if __name__ == '__main__':
 
                 noise_level_est, output = model(input_var)
 
+                # forward(self, out_image, gt_image, est_noise, gt_noise, if_asym)
                 loss = criterion(output, target_var, noise_level_est, 0, 0)
                 losses.update(loss.item())
 

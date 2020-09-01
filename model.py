@@ -141,6 +141,10 @@ class fixed_loss(nn.Module):
             (est_noise[:, :, :, 1:] - est_noise[:, :, :, :w_x - 1]), 2).sum()
         tvloss = h_tv / count_h + w_tv / count_w
 
+        # n = gt_noise - est_noise
+        # a = torch.abs(0.3 - F.relu(n))
+        # b = torch.pow(n, 2)
+        # torch.mul(a, b)
         loss = torch.mean(torch.pow((out_image - gt_image), 2)) + \
                 if_asym * 0.5 * torch.mean(torch.mul(torch.abs(0.3 - F.relu(gt_noise - est_noise)), torch.pow(est_noise - gt_noise, 2))) + \
                 0.05 * tvloss

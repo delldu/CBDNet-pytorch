@@ -16,6 +16,7 @@ args = parser.parse_args()
 input_dir = 'test/input/'
 result_dir = 'test/output/'
 checkpoint_filename = 'checkpoint/CBDNet.pth'
+# checkpoint_filename = 'checkpoint/CBDNet_JPEG.pth'
 
 # model load
 model = CBDNet()

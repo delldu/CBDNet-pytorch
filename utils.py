@@ -5,7 +5,7 @@ import math
 import scipy.io as sio
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+import pdb
 
 class AverageMeter(object):
     def __init__(self):
@@ -92,7 +92,7 @@ def mosaic_bayer(rgb, pattern, noiselevel):
 
     return (B, mask, mosaic)
 
-
+# xxxx3333
 def ICRF_Map(Img, I, B):
     w, h, c = Img.shape
     output_Img = Img.copy()
@@ -120,7 +120,7 @@ def ICRF_Map(Img, I, B):
 
     return output_Img
 
-
+ # xxxx3333
 def CRF_Map(Img, I, B):
     w, h, c = Img.shape
     output_Img = Img.copy()
@@ -236,5 +236,7 @@ def AddRealNoise(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl):
                               B_inv_gl, sigma_s, sigma_c, CRF_index, pattern,
                               0)
     noise_level = sigma_s * np.power(image, 0.5) + sigma_c
+
+    pdb.set_trace()
 
     return noise_img, noise_level
