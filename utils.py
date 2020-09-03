@@ -11,7 +11,24 @@ import pdb
 
 # https://www.cs.columbia.edu/CAVE/software/softlib/dorf.php
 
+# def load_CRF():
+#     CRF = scipy.io.loadmat('matdata/201_CRF_data.mat')
+#     iCRF = scipy.io.loadmat('matdata/dorfCurvesInv.mat')
+#     B_gl = CRF['B']
+#     I_gl = CRF['I']
 
+#     if os.path.exists('matdata/201_CRF_iCRF_function.mat')==0:
+#         CRF_para = np.array(CRF_function_transfer(I_gl, B_gl))
+#         iCRF_para = 1. / CRF_para
+#         scipy.io.savemat('matdata/201_CRF_iCRF_function.mat', {'CRF':CRF_para, 'iCRF':iCRF_para})
+#     else:
+#         Bundle = scipy.io.loadmat('matdata/201_CRF_iCRF_function.mat')
+#         CRF_para = Bundle['CRF']
+#         iCRF_para = Bundle['iCRF']
+
+#     return CRF_para, iCRF_para
+
+    
 class AverageMeter(object):
     def __init__(self):
         self.reset()
