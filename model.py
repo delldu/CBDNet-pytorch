@@ -103,7 +103,9 @@ class CBDNet(nn.Module):
         self.relu(x)
 
         x = self.USP02(x)
+
         x = torch.add(x, 1, down2_result)
+        del down2_result
 
         x = self.US02_layer00(x)
         self.relu(x)
@@ -113,6 +115,7 @@ class CBDNet(nn.Module):
         self.relu(x)
         x = self.USP01(x)
         x = torch.add(x, 1, down1_result)
+        del down1_result
 
         x = self.US01_layer00(x)
         self.relu(x)
@@ -121,7 +124,7 @@ class CBDNet(nn.Module):
         x = self.US01_layer02(x)
         y = torch.add(input, 1, x)
         
-        del x, down1_result, down2_result
+        del x
 
         return noise_level, y
 

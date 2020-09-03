@@ -5,7 +5,12 @@ import math
 import scipy.io as sio
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+
 import pdb
+
+
+# https://www.cs.columbia.edu/CAVE/software/softlib/dorf.php
+
 
 class AverageMeter(object):
     def __init__(self):
@@ -44,15 +49,12 @@ def chw_to_hwc(img):
 #################### noise model ###################
 ####################################################
 
-
 def func(x, a):
     return np.power(x, a)
-
 
 def CRF_curve_fit(I, B):
     popt, pcov = curve_fit(func, I, B)
     return popt
-
 
 def CRF_function_transfer(x, y):
     para = []
@@ -60,6 +62,14 @@ def CRF_function_transfer(x, y):
         temp_x = np.array(x[crf, :])
         temp_y = np.array(y[crf, :])
         para.append(CRF_curve_fit(temp_x, temp_y))
+
+        # (Pdb) pp temp_x.shape, temp_y.shape
+        # ((1024,), (1024,))
+        # pdb.set_trace()
+        # (Pdb) pp para[0]
+        # array([0.34269688])
+        # (Pdb) pp para[1]
+        # array([0.33438498])
     return para
 
 
@@ -77,90 +87,25 @@ def mosaic_bayer(rgb, pattern, noiselevel):
     elif pattern == 5:
         return rgb
 
-    mosaic = np.zeros((w, h, 3))
-    mask = np.zeros((w, h, 3))
     B = np.zeros((w, h))
 
+    # Path is like N ?
     B[0:w:2, 0:h:2] = rgb[0:w:2, 0:h:2, num[0]]
     B[0:w:2, 1:h:2] = rgb[0:w:2, 1:h:2, num[1]]
     B[1:w:2, 0:h:2] = rgb[1:w:2, 0:h:2, num[2]]
     B[1:w:2, 1:h:2] = rgb[1:w:2, 1:h:2, num[3]]
 
     gauss = np.random.normal(0, noiselevel / 255., (w, h))
-    gauss = gauss.reshape(w, h)
+    # gauss = gauss.reshape(w, h)
     B = B + gauss
 
-    return (B, mask, mosaic)
-
-# xxxx3333
-def ICRF_Map(Img, I, B):
-    w, h, c = Img.shape
-    output_Img = Img.copy()
-    prebin = I.shape[0]
-    tiny_bin = 9.7656e-04
-    min_tiny_bin = 0.0039
-    for i in range(w):
-        for j in range(h):
-            for k in range(c):
-                temp = output_Img[i, j, k]
-                start_bin = 0
-                if temp > min_tiny_bin:
-                    start_bin = math.floor(temp / tiny_bin - 1) - 1
-                for b in range(start_bin, prebin):
-                    tempB = B[b]
-                    if tempB >= temp:
-                        index = b
-                        if index > 0:
-                            comp1 = tempB - temp
-                            comp2 = temp - B[index - 1]
-                            if comp2 < comp1:
-                                index = index - 1
-                        output_Img[i, j, k] = I[index]
-                        break
-
-    return output_Img
-
- # xxxx3333
-def CRF_Map(Img, I, B):
-    w, h, c = Img.shape
-    output_Img = Img.copy()
-    prebin = I.shape[0]
-    tiny_bin = 9.7656e-04
-    min_tiny_bin = 0.0039
-    for i in range(w):
-        for j in range(h):
-            for k in range(c):
-                temp = output_Img[i, j, k]
-
-                if temp < 0:
-                    temp = 0
-                    Img[i, j, k] = 0
-                elif temp > 1:
-                    temp = 1
-                    Img[i, j, k] = 1
-                start_bin = 0
-                if temp > min_tiny_bin:
-                    start_bin = math.floor(temp / tiny_bin - 1) - 1
-
-                for b in range(start_bin, prebin):
-                    tempB = I[b]
-                    if tempB >= temp:
-                        index = b
-                        if index > 0:
-                            comp1 = tempB - temp
-                            comp2 = temp - B[index - 1]
-                            if comp2 < comp1:
-                                index = index - 1
-                        output_Img[i, j, k] = B[index]
-                        break
-    return output_Img
-
+    return B
 
 def CRF_Map_opt(Img, popt):
-    w, h, c = Img.shape
+    # w, h, c = Img.shape
     output_Img = Img.copy()
 
-    output_Img = func(output_Img, *popt)
+    output_Img = np.power(output_Img, *popt)
     return output_Img
 
 
@@ -191,19 +136,15 @@ def Demosaic(B_b, pattern):
 
     return lin_rgb
 
-
+# CRF: Modeling the space of camera response functions
+# http://www-cs.ccny.cuny.edu/~grossberg/publications/Modeling_the_Space_of_Camera_Response_Functions_Images.pdf
 def AddNoiseMosai(x,
                   CRF_para,
                   iCRF_para,
-                  I,
-                  B,
-                  Iinv,
-                  Binv,
                   sigma_s,
                   sigma_c,
                   crf_index,
-                  pattern,
-                  opt=1):
+                  pattern):
     w, h, c = x.shape
     temp_x = CRF_Map_opt(x, iCRF_para[crf_index])
 
@@ -241,25 +182,18 @@ def AddNoiseMosai(x,
     # (Pdb) pp temp_x_n.shape
     # (512, 512, 3)
 
-    if opt == 1:
-        temp_x = CRF_Map_opt(temp_x, CRF_para[crf_index])
-
-    B_b_n = mosaic_bayer(temp_x_n[:, :, ::-1], pattern, 0)[0]
+    B_b_n = mosaic_bayer(temp_x_n[:, :, ::-1], pattern, 0)
     # pdb.set_trace()
     # (Pdb) pp B_b_n.shape
     # (512, 512)
 
     lin_rgb_n = Demosaic(B_b_n, pattern)
     # pdb.set_trace()
+
     # (Pdb) lin_rgb.shape
     # (512, 512, 3)    
 
     result = lin_rgb_n
-    if opt == 1:
-        B_b = mosaic_bayer(temp_x[:, :, ::-1], pattern, 0)[0]
-        lin_rgb = Demosaic(B_b, pattern)
-        diff = lin_rgb_n - lin_rgb
-        result = x + diff
 
     # pdb.set_trace()
     # (Pdb) pp result.shape
@@ -268,16 +202,14 @@ def AddNoiseMosai(x,
     return result
 
 
-def AddRealNoise(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl):
+def AddRealNoise(image, CRF_para, iCRF_para):
     # array([0.0923482, 0.0048792, 0.1523728])
     sigma_s = np.random.uniform(0.0, 0.16, (3, ))
     sigma_c = np.random.uniform(0.0, 0.06, (3, ))
 
     CRF_index = np.random.choice(201)
     pattern = np.random.choice(4) + 1
-    noise_img = AddNoiseMosai(image, CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl,
-                              B_inv_gl, sigma_s, sigma_c, CRF_index, pattern,
-                              0)
+    noise_img = AddNoiseMosai(image, CRF_para, iCRF_para, sigma_s, sigma_c, CRF_index, pattern)
     noise_level = sigma_s * np.power(image, 0.5) + sigma_c
 
     # pdb.set_trace()

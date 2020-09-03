@@ -122,7 +122,7 @@ if __name__ == '__main__':
                 noise_syn_levels[ind] = []
 
             if len(noise_syn_imgs[ind]) < 1:
-                noise_syn_img, noise_syn_level = AddRealNoise(origin_syn_imgs[ind][:, :, :], CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl)
+                noise_syn_img, noise_syn_level = AddRealNoise(origin_syn_imgs[ind][:, :, :], CRF_para, iCRF_para)
                 noise_syn_imgs[ind].append(noise_syn_img)
                 noise_syn_levels[ind].append(noise_syn_level)
 

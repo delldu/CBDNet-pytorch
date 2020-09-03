@@ -13,25 +13,20 @@ from utils import *
 from model import *
 import torchvision
 
+import pdb
+
+# DoRF--database of real-world camera response functions
+# http://www.cs.columbia.edu/CAVE
 
 def load_CRF():
     CRF = scipy.io.loadmat('matdata/201_CRF_data.mat')
-    iCRF = scipy.io.loadmat('matdata/dorfCurvesInv.mat')
     B_gl = CRF['B']
     I_gl = CRF['I']
-    B_inv_gl = iCRF['invB']
-    I_inv_gl = iCRF['invI']
 
-    if os.path.exists('matdata/201_CRF_iCRF_function.mat')==0:
-        CRF_para = np.array(CRF_function_transfer(I_gl, B_gl))
-        iCRF_para = 1. / CRF_para
-        scipy.io.savemat('matdata/201_CRF_iCRF_function.mat', {'CRF':CRF_para, 'iCRF':iCRF_para})
-    else:
-        Bundle = scipy.io.loadmat('matdata/201_CRF_iCRF_function.mat')
-        CRF_para = Bundle['CRF']
-        iCRF_para = Bundle['iCRF']
+    CRF_para = np.array(CRF_function_transfer(I_gl, B_gl))
+    iCRF_para = 1. / CRF_para
 
-    return CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl
+    return CRF_para, iCRF_para
 
 
 def load_checkpoint(checkpoint_dir):
@@ -74,7 +69,7 @@ if __name__ == '__main__':
     save_freq = 100
     lr_update_freq = 100
 
-    CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl = load_CRF()
+    CRF_para, iCRF_para = load_CRF()
 
     train_fns = glob.glob(input_dir + '*.bmp')
 
@@ -88,6 +83,10 @@ if __name__ == '__main__':
         noise_levels[i] = []
 
     model, optimizer, cur_epoch = load_checkpoint(checkpoint_dir)
+
+    # load pretrained model
+    model_info = torch.load("checkpoint/CBDNet.pth")
+    model.load_state_dict(model_info)
 
     criterion = fixed_loss()
     criterion = criterion.cuda()
@@ -103,6 +102,11 @@ if __name__ == '__main__':
 
             if not len(origin_imgs[ind]):
                 origin_img = cv2.imread(train_fn)
+                h, w, c = origin_img.shape
+                h = (h // 4) * 4
+                w = (w // 4) * 4
+                origin_img = cv2.resize(origin_img, (h, w))
+
                 origin_img = origin_img[:,:,::-1] / 255.0
                 origin_imgs[ind] = np.array(origin_img).astype('float32')
 
@@ -112,7 +116,7 @@ if __name__ == '__main__':
                 noise_levels[ind] = []
 
             if len(noise_imgs[ind]) < 1:
-                noise_img, noise_level = AddRealNoise(origin_imgs[ind][:, :, :], CRF_para, iCRF_para, I_gl, B_gl, I_inv_gl, B_inv_gl)
+                noise_img, noise_level = AddRealNoise(origin_imgs[ind][:, :, :], CRF_para, iCRF_para)
                 noise_imgs[ind].append(noise_img)
                 noise_levels[ind].append(noise_level)
 

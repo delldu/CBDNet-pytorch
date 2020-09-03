@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description='Image Clean')
 parser.add_argument('--cpu', nargs='?', const=1, help = 'Use CPU')
 args = parser.parse_args()
 
-input_dir = 'test/input/'
+input_dir = 'dataset/test/'
 result_dir = 'test/output/'
 checkpoint_filename = 'checkpoint/CBDNet.pth'
 # checkpoint_filename = 'checkpoint/CBDNet_JPEG.pth'
@@ -40,13 +40,18 @@ if not os.path.isdir(result_dir):
 totensor = transforms.ToTensor()
 toimage = transforms.ToPILImage()
 
-image_filenames = glob.glob(input_dir + '*.png')
+image_filenames = glob.glob(input_dir + '*.bmp')
 progress_bar = tqdm(total = len(image_filenames))
 
 for index, filename in enumerate(image_filenames):
     progress_bar.update(1)
 
     noisy_img = Image.open(filename).convert("RGB")
+    w, h = noisy_img.size
+    w = (w // 16) * 8
+    h = (h // 16) * 8
+    noisy_img = noisy_img.resize((w, h))
+
     input_tensor = totensor(noisy_img).unsqueeze(0)
 
     if not args.cpu:
@@ -54,7 +59,11 @@ for index, filename in enumerate(image_filenames):
 
     with torch.no_grad():
         _, output_tensor = model(input_tensor)
-    output_tensor = output_tensor.clamp(0, 1.0)
 
-    temp = torch.cat((input_tensor.squeeze(), output_tensor.squeeze()), 2).cpu()
-    toimage(temp).save(result_dir + os.path.basename(filename))
+    del input_tensor
+    output_tensor = output_tensor.clamp(0, 1.0).cpu()
+
+    # temp = torch.cat((input_tensor.squeeze(), output_tensor.squeeze()), 2).cpu()
+    # toimage(temp).save(result_dir + os.path.basename(filename))
+
+    toimage(output_tensor.squeeze()).save(result_dir + os.path.basename(filename))
