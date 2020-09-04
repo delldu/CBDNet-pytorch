@@ -91,6 +91,7 @@ class Camera(object):
 
     def brightness(self, tensor, index):
         """Get brightness from irradian."""
+        tensor.clamp_(0.0, 1.0)
         return tensor.pow(self.CRF_para[index])
 
     def brightness_plot(self, index):
@@ -111,6 +112,7 @@ class Camera(object):
     def irradiance(self, tensor, index):
         """Get irradiance from brightness."""
         n = 1.0/self.CRF_para[index]
+        tensor.clamp_(0.0, 1.0)
         return tensor.pow(n)
 
     def irradiance_plot(self, index):
@@ -170,6 +172,7 @@ class Camera(object):
         for ch in range(c):
             noise_s[ch, :, :] = sigma_s[ch] * temp_x[ch, :, :]
         noise_s = noise_s * torch.randn(noise_s.size())
+
         # random noise
         noise_c = torch.zeros_like(temp_x)
         for ch in range(c):
@@ -184,8 +187,9 @@ class Camera(object):
         noise_image = self.decode_mosaic(bayer)
 
         noise_image.clamp_(0, 1.0)
+        noise_level = noise_image - image
 
-        return noise_image
+        return noise_image, noise_level
 
     def noiselevel(self, t):
         pass
@@ -209,14 +213,16 @@ def TestMakeNoise():
         image = image.resize((w, h))
 
     image_tensor = transforms.ToTensor()(image)
-    noise_image_tensor = camera.makenoise(image_tensor)
+    noise_image_tensor, noise_level_tensor = camera.makenoise(image_tensor)
     noise_image = transforms.ToPILImage()(noise_image_tensor)
     noise_image.show()
 
-    noise_level_tensor = noise_image_tensor - image_tensor
     noise_level = transforms.ToPILImage()(noise_level_tensor)
     noise_level.show()
 
+    restruction_tensor = noise_image_tensor - noise_level_tensor
+    restruction = transforms.ToPILImage()(restruction_tensor)
+    restruction.show()
 
 # TestCurveFit()
 TestMakeNoise()
