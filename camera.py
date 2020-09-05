@@ -137,7 +137,7 @@ class Camera(object):
 
         bayer = torch.zeros((h, w))
 
-        # Path is like N -- RGGB ?
+        # Patter -- RGGB
         bayer[0:h:2, 0:w:2] = rgb[0, 0:h:2, 0:w:2]  # R
         bayer[1:h:2, 0:w:2] = rgb[1, 1:h:2, 0:w:2]  # G
         bayer[0:h:2, 1:w:2] = rgb[1, 0:h:2, 1:w:2]  # G
