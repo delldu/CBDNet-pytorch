@@ -5,46 +5,43 @@ from PIL import Image
 import pdb
 
 
-def TensorNoiseLevel(t, PatchSize=8):
+def TensorNoiseLevel(t, patch_size=8, step=5):
 	'''
 		input: t -- Image CxHxW tensor, [0, 1.0]
 	'''
-	step = 3
 	C, H, W = t.size()
-	PatchNumbers = len(range(0, H - PatchSize, step)) * len(range(0, W - PatchSize, step))
-	PlainPatchSize = C * PatchSize * PatchSize
+	plain_patch_size = C * patch_size * patch_size
 
 	# Collect patchs
-	patchs = torch.zeros(PlainPatchSize, PatchNumbers)
+	num_patchs = len(range(0, H - patch_size, step)) * len(range(0, W - patch_size, step))
+	patchs = torch.zeros(C, patch_size, patch_size, num_patchs)
 	nn = 0
-	for i in range(0, H - PatchSize, step):
-		for j in range(0, W - PatchSize, step):
-			patch = t[:, i : i + PatchSize, j : j + PatchSize]
-			patchs[:, nn] = patch.reshape(PlainPatchSize)
+	for i in range(0, H - patch_size, step):
+		for j in range(0, W - patch_size, step):
+			patchs[:, :, :, nn] = t[:, i : i + patch_size, j : j + patch_size]
 			nn = nn + 1
 
+	patchs = patchs.reshape(plain_patch_size, num_patchs)
 	m = patchs.mean(dim = 1, keepdims=True)
 	patchs = patchs - m
-
-	matrix = torch.matmul(patchs, patchs.t())/PatchNumbers
+	matrix = torch.matmul(patchs, patchs.t())/num_patchs
 
 	# [Real, Image] Eigen Values
 	eigvals, _  = torch.eig(matrix)
-	sigmas, _ = eigvals[0 : PlainPatchSize, 0].sort()
-
-	# sigmas --- Real of egien values
+	sigmas, _ = eigvals[0 : plain_patch_size, 0].sort()
+	# Now sigmas is real part of egien values
 	del patchs, matrix
 
 	# Search noise level
-	for i in range(PlainPatchSize, 0, -1):
+	for i in range(plain_patch_size, 0, -1):
 		x = sigmas[:i]
-		m = x.mean()
+		m = sigmas[:i].mean()
 		left = (x < m).sum()
 		right = (x > m).sum()
 		if left == right:
 			return m.sqrt()
 
-	# Search failure ?
+	# Search failure
 	return sigmas.median().sqrt()
 
 def ImageNoiseLevel(image_filename):
