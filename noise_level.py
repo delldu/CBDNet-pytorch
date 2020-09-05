@@ -12,9 +12,11 @@ def TensorNoiseLevel(t, patch_size=8, step=5):
 	C, H, W = t.size()
 	plain_patch_size = C * patch_size * patch_size
 
+	t = t.cuda()
+
 	# Collect patchs
 	num_patchs = len(range(0, H - patch_size, step)) * len(range(0, W - patch_size, step))
-	patchs = torch.zeros(C, patch_size, patch_size, num_patchs)
+	patchs = torch.zeros(C, patch_size, patch_size, num_patchs).cuda()
 	nn = 0
 	for i in range(0, H - patch_size, step):
 		for j in range(0, W - patch_size, step):
