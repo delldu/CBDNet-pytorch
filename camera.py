@@ -158,41 +158,107 @@ class Camera(object):
         c, h, w = image.size(0), image.size(1), image.size(2)
 
         sigma_s = torch.randn(3)
-        sigma_s.uniform_(0.0, 0.16)
+        if False:
+            sigma_s.uniform_(0.0, 0.16)
+        else:
+            sigma_s.fill_(0.0)
 
         sigma_c = torch.randn(3)
-        sigma_c.uniform_(0.0, 0.06)
+        if False:
+            sigma_c.uniform_(0.0, 0.06)
+        else:
+            sigma_c.fill_(10.0/255.0)
 
         index = random.randint(0, 200)
 
         # Camera light noise
-        temp_x = self.irradiance(image, index)
+        if False:
+            temp_x = self.irradiance(image, index)
+        else:
+            temp_x = image
+
         # signal noise
         noise_s = torch.zeros_like(temp_x)
-        for ch in range(c):
-            noise_s[ch, :, :] = sigma_s[ch] * temp_x[ch, :, :]
-        noise_s = noise_s * torch.randn(noise_s.size())
+        if False:
+            for ch in range(c):
+                noise_s[ch, :, :] = sigma_s[ch] * temp_x[ch, :, :]
+            noise_s = noise_s * torch.randn(noise_s.size())
+        else:
+            noise_s = torch.zeros_like(image)
 
         # random noise
-        noise_c = torch.zeros_like(temp_x)
-        for ch in range(c):
-            noise_c[ch, :, :] = torch.normal(0, sigma_c[ch], (h, w))
+        if False:
+            noise_c = torch.zeros_like(temp_x)
+            for ch in range(c):
+                noise_c[ch, :, :] = torch.normal(0, sigma_c[ch], (h, w))
+        else:
+            noise_c = 10.0/255.0*torch.randn(image.size())
+
+        # pdb.set_trace()
+        # noise = t + std * torch.randn(t.size())
+
         temp_x_n = temp_x + noise_s + noise_c
-        temp_x = self.brightness(temp_x_n, index)
+        if False:
+            temp_x = self.brightness(temp_x_n, index)
+        else:
+            temp_x = temp_x_n
 
         # Camera sensor noise
-        self.brightness_plot(index)
+        # self.brightness_plot(index)
         temp_x.clamp_(0, 1.0)
         bayer = self.encode_mosaic(temp_x)
         noise_image = self.decode_mosaic(bayer)
 
-        noise_image.clamp_(0, 1.0)
+        if True:
+            noise_image = image + noise_c
+
         noise_level = noise_image - image
 
         return noise_image, noise_level
 
     def noiselevel(self, t):
         pass
+
+def TensorNoiseLevel(t, patch_size=8):
+    '''
+        input: t -- Image CxHxW tensor, [0, 1.0]
+    '''
+    C, H, W = t.size()
+    stride = patch_size // 2 - 1
+    total_patch_size = C * patch_size * patch_size
+
+    # Generate dataset
+    num_patchs = len(range(0, H - patch_size + 1, stride)) * len(range(0, W - patch_size + 1, stride))
+    patchs = torch.zeros(C, patch_size, patch_size, num_patchs)
+    k = 0
+    for i in range(0, H - patch_size + 1, stride):
+        for j in range(0, W - patch_size + 1, stride):
+            patchs[:, :, :, k] = t[:, i : i + patch_size, j : j + patch_size]
+            k += 1
+    patchs = patchs.reshape(total_patch_size, num_patchs)
+
+    # 2. Create covariance matrix
+    m = patchs.mean(dim = 1, keepdims=True)
+    patchs = patchs - m
+    matrix = torch.matmul(patchs, patchs.t())/num_patchs
+
+    # 3. Calulate eigen value
+    # [Real, Image] Eigen Values
+    eigvals, _  = torch.eig(matrix)
+    sigmas, _ = eigvals[0 : total_patch_size, 0].sort(descending=True)
+    # Now sigmas is real part of egien values
+    del patchs, matrix
+
+    # 4. Search median value
+    for i in range(total_patch_size):
+        x = sigmas[i:]
+        m = x.mean()
+        left = (x < m).sum()
+        right = (x > m).sum()
+        if left == right:
+            break
+    return m.sqrt()
+
 
 def TestCurveFit():
     camera = Camera()
@@ -201,11 +267,12 @@ def TestCurveFit():
     camera.brightness_plot(index)
     camera.irradiance_plot(index)
 
-def TestMakeNoise():
+def TestMakeNoise(imagefile):
     camera = Camera()
 
     # Make sure image size could be divied by 2 without resident
-    image = Image.open("imgs/CBDNet_v13.png").convert("RGB")
+    # image = Image.open("imgs/CBDNet_v13.png").convert("RGB")
+    image = Image.open(imagefile).convert("RGB")
     (w, h) = image.size
     w = (w // 2) * 2
     h = (h // 2) * 2
@@ -214,16 +281,33 @@ def TestMakeNoise():
 
     image_tensor = transforms.ToTensor()(image)
     noise_image_tensor, noise_level_tensor = camera.makenoise(image_tensor)
+    sigma = TensorNoiseLevel(noise_image_tensor) * 255.0
+ 
     noise_image = transforms.ToPILImage()(noise_image_tensor)
-    noise_image.show()
+    # noise_image.show()
+    # noise_image.save("/tmp/noise.png")
+    noise_image_tensor2 = transforms.ToTensor()(noise_image)
+    sigma2 = TensorNoiseLevel(noise_image_tensor2) * 255.0
+ 
+    print("{} noise esitimation sigma1: {:.4f}, sigma2: {:.4f}".format(imagefile, sigma, sigma2))
 
-    noise_level = transforms.ToPILImage()(noise_level_tensor)
-    noise_level.show()
+    # noise_level = transforms.ToPILImage()(noise_level_tensor)
+    # noise_level.show()
 
-    restruction_tensor = noise_image_tensor - noise_level_tensor
-    restruction = transforms.ToPILImage()(restruction_tensor)
-    restruction.show()
+    # restruction_tensor = noise_image_tensor - noise_level_tensor
+    # restruction = transforms.ToPILImage()(restruction_tensor)
+    # restruction.show()
 
 # TestCurveFit()
-TestMakeNoise()
+TestMakeNoise("/tmp/lena.png")
+TestMakeNoise("/tmp/test.png")
 
+TestMakeNoise("test/output/01_noise.png")
+TestMakeNoise("test/output/02_noise.png")
+TestMakeNoise("test/output/03_noise.png")
+TestMakeNoise("test/output/04_noise.png")
+TestMakeNoise("test/output/05_noise.png")
+TestMakeNoise("test/output/06_noise.png")
+TestMakeNoise("test/output/07_noise.png")
+TestMakeNoise("test/output/08_noise.png")
+TestMakeNoise("test/output/09_noise.png")
