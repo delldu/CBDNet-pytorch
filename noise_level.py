@@ -30,6 +30,31 @@ class GaussFilter(nn.Module):
         y = self.conv(y)
         return y.squeeze(0)
 
+
+class LaplaceFilter(nn.Module):
+    """
+    3x3 Guassian filter
+    """
+
+    def __init__(self):
+        super(LaplaceFilter, self).__init__()
+        self.conv = nn.Conv2d(
+            3, 3, kernel_size=3, padding=1, groups=3, bias=False)
+
+        # self.conv.bias.data.fill_(0.0)
+        self.conv.weight.data.fill_(0.0)
+        self.conv.weight.data[:, :, 0, 1] = -0.25
+        self.conv.weight.data[:, :, 1, 0] = -0.25
+        self.conv.weight.data[:, :, 1, 2] = -0.25
+        self.conv.weight.data[:, :, 2, 1] = -0.25
+        self.conv.weight.data[:, :, 1, 1] = 1.0
+
+    def forward(self, x):
+        y = x.unsqueeze(0)
+        y = self.conv(y)
+        return y.squeeze(0)
+
+
 def TensorNoiseLevel(t, patch_size=8):
 	'''
 		input: t -- Image CxHxW tensor, [0, 1.0]
@@ -71,13 +96,13 @@ def TensorNoiseLevel(t, patch_size=8):
 	return m.sqrt()*255.0
 
 def ImageNoiseLevel(image_filename):
-	img = Image.open(image_filename).convert('L')
+	img = Image.open(image_filename).convert('RGB')
 
 	t = transforms.ToTensor()(img)
-	# gaussfilter = GaussFilter()
-	# gt = gaussfilter(t)
+	filter = LaplaceFilter()
+	gt = filter(t)
 	# delta = t - gt
-	sigma = TensorNoiseLevel(t)
+	sigma = TensorNoiseLevel(gt)
 
 	print("Raw image {} noise estimation is {:.4f}".format(image_filename, sigma))
 
@@ -92,6 +117,8 @@ def ImageNoiseLevel(image_filename):
 
 		real_std = noise_c.std() * 255.0
 		noise.clamp_(0.0, 1.0)
+		noise = filter(noise)
+
 		sigma = TensorNoiseLevel(noise)
 
 		print("{}: {} Noise Level: Real is {:.4f}, Estimation is {:.4f}".format(i, image_filename, real_std, sigma))
