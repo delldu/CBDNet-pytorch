@@ -269,7 +269,6 @@ class Counter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-
 def train_epoch(loader, model, optimizer, device, tag=''):
     """Trainning model ..."""
 
@@ -303,7 +302,7 @@ def train_epoch(loader, model, optimizer, device, tag=''):
             # Update loss
             total_loss.update(loss_value, count)
 
-            t.set_postfix(loss='{:.4f}'.format(total_loss.avg))
+            t.set_postfix(loss='{:.5f}'.format(total_loss.avg))
             t.update(count)
 
             # Optimizer
@@ -352,7 +351,7 @@ def valid_epoch(loader, model, device, tag=''):
                 sys.exit(1)
 
             valid_loss.update(loss_value, count)
-            t.set_postfix(loss='{:.4f}'.format(valid_loss.avg))
+            t.set_postfix(loss='{:.5f}'.format(valid_loss.avg))
             t.update(count)
 
 
