@@ -17,7 +17,7 @@ import torch.utils.data as data
 import torchvision.transforms as T
 import torchvision.utils as utils
 
-PolyuRoot = 'CroppedImages'
+PolyuRoot = 'dataset/Polyu/CroppedImages'
 
 
 def get_transform(train=True):
