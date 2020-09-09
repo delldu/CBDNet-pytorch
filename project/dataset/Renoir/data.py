@@ -5,20 +5,21 @@
 # ***
 # ***    Copyright Dell 2020, All Rights Reserved.
 # ***
-# ***    File Author: Dell, 2020年 09月 01日 星期二 18:24:27 CST
+# ***    File Author: Dell, 2020年 09月 09日 星期三 14:24:21 CST
 # ***
 # ************************************************************************************/
 #
 
 import os
-import random
+import glob
 import torch
+import random
 from PIL import Image
 import torch.utils.data as data
 import torchvision.transforms as T
 import torchvision.utils as utils
 
-PolyuRoot = 'dataset/Polyu/CroppedImages'
+train_dataset_rootdir = "dataset/Renoir/Aligned"
 CROP_SIZE = 512
 
 def get_transform(train=True):
@@ -26,32 +27,39 @@ def get_transform(train=True):
     ts = []
     # if train:
     #     ts.append(T.RandomHorizontalFlip(0.5))
+
     ts.append(T.ToTensor())
     return T.Compose(ts)
 
-class PolyuDataset(data.Dataset):
+class ReniorDataset(data.Dataset):
     """Define dataset."""
 
     def __init__(self, root, transforms=get_transform()):
         """Init dataset."""
-        super(PolyuDataset, self).__init__()
+        super(ReniorDataset, self).__init__()
 
         self.root = root
         self.transforms = transforms
 
         # load all images, sorting for alignment
-        files = list(sorted(os.listdir(root)))
-        self.images = [fn for fn in files if fn.endswith('real.JPG')]
+        # dataset/Renoir/Aligned/Batch_001
+        # ├── IMG_20160202_015216Reference.bmp
+        # ├── IMG_20160202_015247Noisy.bmp
+        # └── IMG_20160202_015252Noisy.bmp
+        dirs = list(sorted(os.listdir(root)))
+        self.noise_images = []
+        self.clean_images = []
+        for d in dirs:
+            clean_files = glob.glob(root + "/" + d + "/*Reference.bmp")
+            noise_files = glob.glob(root + "/" + d + "/*Noisy.bmp")
+            for n in noise_files:
+                self.noise_images.append(n)
+                self.clean_images.append(clean_files[0])
 
     def __getitem__(self, idx):
         """Load images."""
-        image_path = os.path.join(self.root, self.images[idx])
-        noise_image = Image.open(image_path).convert("RGB")
-
-        # clean image
-        head, tail = os.path.split(image_path)
-        image_path = os.path.join(head, tail.replace('real', 'mean'))
-        clean_image = Image.open(image_path).convert("RGB")
+        noise_image = Image.open(self.noise_images[idx]).convert("RGB")
+        clean_image = Image.open(self.clean_images[idx]).convert("RGB")
 
         # left, top, right, bottom = 0, 0, 512, 512
         H, W = noise_image.height, noise_image.width
@@ -64,11 +72,12 @@ class PolyuDataset(data.Dataset):
         if self.transforms is not None:
             noise_image = self.transforms(noise_image)
             clean_image = self.transforms(clean_image)
+
         return noise_image, clean_image
 
     def __len__(self):
         """Return total numbers of images."""
-        return len(self.images)
+        return len(self.noise_images)
 
     def __repr__(self):
         """
@@ -84,11 +93,11 @@ class PolyuDataset(data.Dataset):
 def train_data(bs):
     """Get data loader for trainning & validating, bs means batch_size."""
 
-    train_ds = PolyuDataset(PolyuRoot, get_transform(train=True))
+    train_ds = ReniorDataset(train_dataset_rootdir, get_transform(train=True))
+    print(train_ds)
 
     # Split train_ds in train and valid set
-    valid_size = int(len(train_ds) * 0.20)      # 20%
-
+    # xxxx--modify here
     valid_len = int(0.2 * len(train_ds))
     indices = [i for i in range(valid_len, len(train_ds))]
     valid_ds = data.Subset(train_ds, indices)
@@ -104,7 +113,8 @@ def train_data(bs):
 def test_data(bs):
     """Get data loader for test, bs means batch_size."""
 
-    _, test_bs = train_data(bs)
+    test_ds = ReniorDataset(test_dataset_rootdir, get_transform(train=False))
+    test_dl = data.DataLoader(test_ds, batch_size=bs * 2, shuffle=False, num_workers=4)
 
     return test_dl
 
@@ -114,14 +124,21 @@ def get_data(trainning=True, bs=4):
 
     return train_data(bs) if trainning else test_data(bs)
 
-def PolyuDatasetTest():
-    ds = PolyuDataset(PolyuRoot)
+def ReniorDatasetTest():
+    """Test dataset ..."""
+
+    ds = ReniorDataset(train_dataset_rootdir)
     print(ds)
-    noise_image, clean_image = ds[10]
-    grid = utils.make_grid(torch.cat([noise_image.unsqueeze(0), clean_image.unsqueeze(0)], dim=0), nrow=2)
+    src, tgt = ds[10]
+    grid = utils.make_grid(torch.cat([src.unsqueeze(0), tgt.unsqueeze(0)], dim=0), nrow=2)
     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
     image = Image.fromarray(ndarr)
+    print(image.size)
+
     image.show()
 
+
 if __name__ == '__main__':
-    PolyuDatasetTest()
+    """Unit Test ..."""
+
+    ReniorDatasetTest()
