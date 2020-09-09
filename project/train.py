@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--outputdir', type=str, default="output", help="output directory")
     parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpoint file")
-    parser.add_argument('--bs', type=int, default=2, help="batch size")
+    parser.add_argument('--bs', type=int, default=10, help="batch size")
     parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
     parser.add_argument('--epochs', type=int, default=10)
     args = parser.parse_args()
@@ -43,9 +43,7 @@ if __name__ == "__main__":
     model.to(device)
 
     # construct optimizer and learning rate scheduler,
-    # xxxx--modify here
-    params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.Adam(params, lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     if os.environ["ENABLE_APEX"] == "YES":
         from apex import amp
@@ -57,7 +55,7 @@ if __name__ == "__main__":
     train_dl, valid_dl = get_data(trainning=True, bs=args.bs)
 
     for epoch in range(args.epochs):
-        print("Epoch {}/{}, learning rate: {} ...".format(epoch + 1, args.epochs, lr_scheduler.get_lr()))
+        print("Epoch {}/{}, learning rate: {} ...".format(epoch + 1, args.epochs, lr_scheduler.get_last_lr()))
 
         train_epoch(train_dl, model, optimizer, device, tag='train')
 
