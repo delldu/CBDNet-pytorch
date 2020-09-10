@@ -292,6 +292,7 @@ def train_epoch(loader, model, optimizer, device, tag=''):
 
             noise_level_est, output = model(images)
 
+            # out_image, gt_image, est_noise, gt_noise, if_asym
             loss = criterion(output, targets, noise_level_est, 0, 0)
 
             loss_value = loss.item()
@@ -302,7 +303,7 @@ def train_epoch(loader, model, optimizer, device, tag=''):
             # Update loss
             total_loss.update(loss_value, count)
 
-            t.set_postfix(loss='{:.5f}'.format(total_loss.avg))
+            t.set_postfix(loss='{:.6f}'.format(total_loss.avg))
             t.update(count)
 
             # Optimizer
@@ -343,6 +344,7 @@ def valid_epoch(loader, model, device, tag=''):
             with torch.no_grad():
                 noise_level_est, output = model(images)
 
+            # out_image, gt_image, est_noise, gt_noise, if_asym
             loss = criterion(output, targets, noise_level_est, 0, 0)
 
             loss_value = loss.item()
@@ -351,7 +353,7 @@ def valid_epoch(loader, model, device, tag=''):
                 sys.exit(1)
 
             valid_loss.update(loss_value, count)
-            t.set_postfix(loss='{:.5f}'.format(valid_loss.avg))
+            t.set_postfix(loss='{:.6f}'.format(valid_loss.avg))
             t.update(count)
 
 
@@ -363,6 +365,17 @@ def model_setenv():
     random.seed(42)
     torch.manual_seed(42)
 
+    # Default environment variables avoid access exceptions
+    if os.environ.get("ONLY_USE_CPU") != "YES" and os.environ.get("ONLY_USE_CPU") != "NO":
+        os.environ["ONLY_USE_CPU"] = "NO"
+
+    if os.environ.get("ENABLE_APEX") != "YES" and os.environ.get("ENABLE_APEX") != "NO":
+        os.environ["ENABLE_APEX"] = "YES"
+
+    if os.environ.get("DEVICE") != "YES" and os.environ.get("DEVICE") != "NO":
+        os.environ["DEVICE"] = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
     # Is there GPU ?
     if not torch.cuda.is_available():
         os.environ["ONLY_USE_CPU"] = "YES"
@@ -371,26 +384,20 @@ def model_setenv():
     if os.environ.get("ONLY_USE_CPU") == "YES":
         os.environ["ENABLE_APEX"] = "NO"
     else:
-        os.environ["ONLY_USE_CPU"] = "NO"
-        # export ENABLE_APEX=YES ?
-        if not os.environ.get("ENABLE_APEX") == "NO":
-            try:
-                from apex import amp
-                os.environ["ENABLE_APEX"] = "YES"
-            except:
-                os.environ["ENABLE_APEX"] = "NO"
+        try:
+            from apex import amp
+        except:
+            os.environ["ENABLE_APEX"] = "NO"
 
     # Running on GPU if available
     if os.environ.get("ONLY_USE_CPU") == "YES":
         os.environ["DEVICE"] = 'cpu'
     else:
-        os.environ["DEVICE"] = 'cuda' if torch.cuda.is_available() else 'cpu'
-
         if torch.cuda.is_available():
             torch.backends.cudnn.enabled = True
             torch.backends.cudnn.benchmark = True
 
-    print("Environment")
+    print("Running Environment:")
     print("----------------------------------------------")
     print("  USER: ", os.environ["USER"])
     print("  PWD: ", os.environ["PWD"])

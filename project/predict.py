@@ -51,7 +51,7 @@ if __name__ == "__main__":
     for index, filename in enumerate(image_filenames):
         progress_bar.update(1)
 
-        # GT
+        # GT image
         head, tail = os.path.split(filename)
         image_path = os.path.join(head, tail.replace('real', 'mean'))
         clean_image = Image.open(image_path).convert("RGB")
