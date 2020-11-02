@@ -365,7 +365,7 @@ def model_setenv():
     random.seed(42)
     torch.manual_seed(42)
 
-    # Default environment variables avoid access exceptions
+    # Set default environment variables to avoid exceptions
     if os.environ.get("ONLY_USE_CPU") != "YES" and os.environ.get("ONLY_USE_CPU") != "NO":
         os.environ["ONLY_USE_CPU"] = "NO"
 
@@ -399,7 +399,7 @@ def model_setenv():
 
     print("Running Environment:")
     print("----------------------------------------------")
-    print("  USER: ", os.environ["USER"])
+    # print("  USER: ", os.environ["USER"])
     print("  PWD: ", os.environ["PWD"])
     print("  DEVICE: ", os.environ["DEVICE"])
     print("  ONLY_USE_CPU: ", os.environ["ONLY_USE_CPU"])
