@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 import pdb
 
-# The following core come from https://github.com/b03901165Shih/CBDNet-pytorch-inference.git
+# The following comes from https://github.com/b03901165Shih/CBDNet-pytorch-inference.git
 # Thank the authors, i love you !!!
 
 class ImageCleanModel(nn.Module):
