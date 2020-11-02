@@ -27,7 +27,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpint file")
+    # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Canon5D2_*real.JPG", help="input image")
+    # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Canon600D_*real.JPG", help="input image")
+    # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/NikonD800_*real.JPG", help="input image")
     parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Sony_*real.JPG", help="input image")
+
     args = parser.parse_args()
 
     # CPU or GPU ?
@@ -62,6 +66,7 @@ if __name__ == "__main__":
 
         with torch.no_grad():
             noise_level_est, output_tensor = model(input_tensor)
+            # noise_level_est, output_tensor = model(output_tensor)
 
         output_tensor.clamp_(0, 1.0)
 
@@ -69,3 +74,5 @@ if __name__ == "__main__":
         ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
         image = Image.fromarray(ndarr)
         image.show()
+
+        image.save("output/image_{:02d}.jpg".format(index + 1))

@@ -9,14 +9,12 @@
 # ***
 # ************************************************************************************/
 #
-
 import os
 import argparse
 import torch
 import torch.optim as optim
 from data import get_data
 from model import get_model, model_load, model_save, train_epoch, valid_epoch, model_setenv
-
 
 if __name__ == "__main__":
     """Trainning model."""

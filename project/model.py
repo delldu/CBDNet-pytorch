@@ -146,11 +146,10 @@ class ImageCleanModel(nn.Module):
         self.relu(x)
         x = self.US01_layer02(x)
         y = torch.add(input, 1, x)
-        
+
         del x
 
         return noise_level, y
-
 
 class fixed_loss(nn.Module):
     def __init__(self):
@@ -204,7 +203,6 @@ def model_export():
     import onnx
     from onnx import optimizer
 
-    # xxxx--modify here
     onnx_file = "model.onnx"
     weight_file = "checkpoint/weight.pth"
 
@@ -216,7 +214,6 @@ def model_export():
 
     # 2. Model export
     print("Export model ...")
-    # xxxx--modify here
     dummy_input = torch.randn(1, 3, 512, 512)
     input_names = [ "input" ]
     output_names = [ "output" ]
@@ -399,7 +396,6 @@ def model_setenv():
 
     print("Running Environment:")
     print("----------------------------------------------")
-    # print("  USER: ", os.environ["USER"])
     print("  PWD: ", os.environ["PWD"])
     print("  DEVICE: ", os.environ["DEVICE"])
     print("  ONLY_USE_CPU: ", os.environ["ONLY_USE_CPU"])
@@ -419,7 +415,6 @@ def infer_perform():
     with tqdm(total=len(1000)) as t:
         t.set_description(tag)
 
-        # xxxx--modify here
         input = torch.randn(64, 3, 512, 512)
         input = input.to(device)
 
