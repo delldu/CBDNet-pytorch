@@ -66,7 +66,6 @@ if __name__ == "__main__":
 
         with torch.no_grad():
             noise_level_est, output_tensor = model(input_tensor)
-            # noise_level_est, output_tensor = model(output_tensor)
 
         output_tensor.clamp_(0, 1.0)
 
