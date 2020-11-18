@@ -127,7 +127,8 @@ class ImageCleanModel(nn.Module):
 
         x = self.USP02(x)
 
-        x = torch.add(x, 1, down2_result)
+        # x = torch.add(x, 1, down2_result)
+        x = torch.add(x, down2_result, alpha=1)
         del down2_result
 
         x = self.US02_layer00(x)
@@ -137,7 +138,9 @@ class ImageCleanModel(nn.Module):
         x = self.US02_layer02(x)
         self.relu(x)
         x = self.USP01(x)
-        x = torch.add(x, 1, down1_result)
+        # x = torch.add(x, 1, down1_result)
+        x = torch.add(x, down1_result, alpha=1)
+
         del down1_result
 
         x = self.US01_layer00(x)
@@ -145,7 +148,8 @@ class ImageCleanModel(nn.Module):
         x = self.US01_layer01(x)
         self.relu(x)
         x = self.US01_layer02(x)
-        y = torch.add(input, 1, x)
+        # y = torch.add(input, 1, x)
+        y = torch.add(input, x, alpha=1)
 
         del x
 
@@ -203,8 +207,8 @@ def model_export():
     import onnx
     from onnx import optimizer
 
-    onnx_file = "model.onnx"
-    weight_file = "checkpoint/weight.pth"
+    onnx_file = "output/image_clean.onnx"
+    weight_file = "output/ImageClean.pth"
 
     # 1. Load model
     print("Loading model ...")
@@ -216,14 +220,19 @@ def model_export():
     print("Export model ...")
     dummy_input = torch.randn(1, 3, 512, 512)
     input_names = [ "input" ]
-    output_names = [ "output" ]
+    output_names = [ "noise_level", "output" ]
+    # variable lenght axes
+    dynamic_axes = {'input': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
+                'noise_level': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
+                'output': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'}}
     torch.onnx.export(model, dummy_input, onnx_file,
                     input_names=input_names, 
                     output_names=output_names,
                     verbose=True,
                     opset_version=11,
                     keep_initializers_as_inputs=True,
-                    export_params=True)
+                    export_params=True,
+                    dynamic_axes=dynamic_axes)
 
     # 3. Optimize model
     print('Checking model ...')
@@ -236,7 +245,7 @@ def model_export():
     onnx.save(optimized_model, onnx_file)
 
     # 4. Visual model
-    # python -c "import netron; netron.start('model.onnx')"
+    # python -c "import netron; netron.start('image_clean.onnx')"
 
 
 def get_model():
@@ -427,8 +436,10 @@ def infer_perform():
 if __name__ == '__main__':
     """Test model ..."""
 
-    # model_export()
+    model_export()
     # infer_perform()
 
-    model = ImageCleanModel()
-    print(model)
+    # model = ImageCleanModel()
+    # print(model)
+
+    # Canon5D2_5_160_3200_plug_12_mean.JPG
