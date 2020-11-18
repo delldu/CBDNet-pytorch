@@ -14,13 +14,11 @@ import argparse
 import torch
 import torch.optim as optim
 from data import get_data
-from model import get_model, model_load, model_save, train_epoch, valid_epoch, model_setenv
+from model import get_model, model_load, model_save, train_epoch, valid_epoch, enable_amp
 
 if __name__ == "__main__":
     """Trainning model."""
     
-    model_setenv()    
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--outputdir', type=str, default="output", help="output directory")
     parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpoint file")
@@ -33,22 +31,22 @@ if __name__ == "__main__":
     if not os.path.exists(args.outputdir):
         os.makedirs(args.outputdir)
 
+    # get model
+    model = get_model()
+
     # CPU or GPU ?
     device = torch.device(os.environ["DEVICE"])
 
-    # get model
-    model = get_model()
     model_load(model, args.checkpoint)
     model.to(device)
 
     # construct optimizer and learning rate scheduler,
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    if os.environ["ENABLE_APEX"] == "YES":
-        from apex import amp
-        model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
-
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.1)
+
+    enable_amp(model)
+    enable_amp(optimizer)
 
     # get data loader
     train_dl, valid_dl = get_data(trainning=True, bs=args.bs)

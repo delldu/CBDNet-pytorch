@@ -16,7 +16,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from apex import amp
 from tqdm import tqdm
 
 import pdb
@@ -212,7 +212,7 @@ def model_export():
 
     # 1. Load model
     print("Loading model ...")
-    model = ImageCleanModel()
+    model = get_model()
     model_load(model, weight_file)
     model.eval()
 
@@ -250,6 +250,7 @@ def model_export():
 
 def get_model():
     """Create model."""
+    model_setenv()
     model = ImageCleanModel()
     return model
 
@@ -315,7 +316,6 @@ def train_epoch(loader, model, optimizer, device, tag=''):
             # Optimizer
             optimizer.zero_grad()
             if os.environ["ENABLE_APEX"] == "YES":
-                from apex import amp
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
             else:
@@ -381,7 +381,6 @@ def model_setenv():
     if os.environ.get("DEVICE") != "YES" and os.environ.get("DEVICE") != "NO":
         os.environ["DEVICE"] = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
     # Is there GPU ?
     if not torch.cuda.is_available():
         os.environ["ONLY_USE_CPU"] = "YES"
@@ -390,10 +389,7 @@ def model_setenv():
     if os.environ.get("ONLY_USE_CPU") == "YES":
         os.environ["ENABLE_APEX"] = "NO"
     else:
-        try:
-            from apex import amp
-        except:
-            os.environ["ENABLE_APEX"] = "NO"
+        os.environ["ENABLE_APEX"] = "YES"
 
     # Running on GPU if available
     if os.environ.get("ONLY_USE_CPU") == "YES":
@@ -411,13 +407,17 @@ def model_setenv():
     print("  ENABLE_APEX: ", os.environ["ENABLE_APEX"])
 
 
+def enable_amp(x):
+    """Init Automatic Mixed Precision(AMP)."""
+    if os.environ["ENABLE_APEX"] == "YES":
+        x = amp.initialize(x, opt_level="O1")    
+
 def infer_perform():
     """Model infer performance ..."""
 
-    model_setenv()
+    model = get_model()
     device = os.environ["DEVICE"]
 
-    model = ImageCleanModel()
     model.eval()
     model = model.to(device)
 
@@ -439,7 +439,7 @@ if __name__ == '__main__':
     model_export()
     # infer_perform()
 
-    # model = ImageCleanModel()
+    # model = get_model()
     # print(model)
 
     # Canon5D2_5_160_3200_plug_12_mean.JPG

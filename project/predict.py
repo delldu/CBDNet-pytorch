@@ -16,14 +16,12 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.utils as utils
 from PIL import Image
-from model import get_model, model_load, model_setenv
+from model import get_model, model_load, enable_amp
 from tqdm import tqdm
 import pdb
 
 if __name__ == "__main__":
     """Predict."""
-
-    model_setenv()
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpint file")
@@ -34,17 +32,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    model = get_model()
+
     # CPU or GPU ?
     device = torch.device(os.environ["DEVICE"])
 
-    model = get_model()
+
     model_load(model, args.checkpoint)
     model.to(device)
     model.eval()
 
-    if os.environ["ENABLE_APEX"] == "YES":
-        from apex import amp
-        model = amp.initialize(model, opt_level="O1")
+    enable_amp(model)
 
     totensor = transforms.ToTensor()
     # toimage = transforms.ToPILImage()
