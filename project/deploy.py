@@ -17,20 +17,22 @@ import io
 import os
 import pdb
 import re
+
 import torch
 import torchvision.transforms as transforms
 from flask import Flask, request
 from PIL import Image
 
-from model import enable_amp, get_model, model_load
+from model import enable_amp, get_model, model_device, model_load
 
 # Global variables
 app = Flask(__name__)
 
 model = get_model()
 model_load(model, "output/ImageClean.pth")
+
 # CPU or GPU ?
-device = torch.device(os.environ["DEVICE"])
+device = model_device()
 model.to(device)
 model.eval()
 enable_amp(model)

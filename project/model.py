@@ -10,177 +10,17 @@
 # ************************************************************************************/
 #
 
-import os
-import sys
 import math
+import os
+import pdb
+import sys
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from apex import amp
 from tqdm import tqdm
 
-import pdb
+from model_helper import ImageCleanModel, fixed_loss
 
-# The following comes from https://github.com/b03901165Shih/CBDNet-pytorch-inference.git
-# Thank the authors, i love you !!!
-
-class ImageCleanModel(nn.Module):
-    """ImageClean Model."""
-
-    def __init__(self):
-        """Init model."""
-        super(ImageCleanModel, self).__init__()
-
-        self.relu = nn.ReLU(inplace=True)
-
-        self.E01 = nn.Conv2d(3, 32, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.E02 = nn.Conv2d(32, 32, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.E03 = nn.Conv2d(32, 32, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.E04 = nn.Conv2d(32, 32, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.E05 = nn.Conv2d(32, 3, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        # input
-        self.DS01_layer00 = nn.Conv2d(6, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS01_layer01 = nn.Conv2d(64, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS01_layer02 = nn.Conv2d(64, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS01_layer03 = nn.Conv2d(64, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        self.DS02 = nn.Conv2d(64, 256, kernel_size=[2, 2], stride=(2, 2))
-        self.DS02_layer00_cf = nn.Conv2d(256, 128, kernel_size=[1, 1], stride=(1, 1))
-        self.DS02_layer00 = nn.Conv2d(128, 128, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS02_layer01 = nn.Conv2d(128, 128, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS02_layer02 = nn.Conv2d(128, 128, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        self.DS03 = nn.Conv2d(128, 512, kernel_size=[2, 2], stride=(2, 2))
-        self.DS03_layer00_cf = nn.Conv2d(512, 256, kernel_size=[1, 1], stride=(1, 1))
-        self.DS03_layer00 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS03_layer01 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.DS03_layer02 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        
-        self.UPS03_layer00 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.UPS03_layer01 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.UPS03_layer02 = nn.Conv2d(256, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.UPS03_layer03 = nn.Conv2d(256, 512, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        self.USP02 = nn.ConvTranspose2d(512, 128, kernel_size=[2, 2], stride=(2, 2), bias=False)
-        self.US02_layer00 = nn.Conv2d(128, 128, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.US02_layer01 = nn.Conv2d(128, 128, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.US02_layer02 = nn.Conv2d(128, 256, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        self.USP01 = nn.ConvTranspose2d(256, 64, kernel_size=[2, 2], stride=(2, 2), bias=False)
-        self.US01_layer00 = nn.Conv2d(64, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-        self.US01_layer01 = nn.Conv2d(64, 64, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-        # output
-        self.US01_layer02 = nn.Conv2d(64, 3, kernel_size=[3, 3], stride=(1, 1), padding=(1, 1))
-
-    def forward(self, input):
-        x = self.E01(input)
-        self.relu(x)
-        x = self.E02(x)
-        self.relu(x)
-        x = self.E03(x)
-        self.relu(x)
-        x = self.E04(x)
-        self.relu(x)
-        x = self.E05(x)
-        self.relu(x)
-        noise_level = x
-        x = torch.cat((input, noise_level), dim=1)
-
-        x = self.DS01_layer00(x)
-        self.relu(x)
-        x = self.DS01_layer01(x)
-        self.relu(x)
-        x = self.DS01_layer02(x)
-        self.relu(x)
-        x = self.DS01_layer03(x)
-        self.relu(x)
-        down1_result = x
-
-        x = self.DS02(down1_result)
-        x = self.DS02_layer00_cf(x)
-        x = self.DS02_layer00(x)
-        self.relu(x)
-        x = self.DS02_layer01(x)
-        self.relu(x)
-        x = self.DS02_layer02(x)
-        self.relu(x)
-
-        down2_result = x
-        x = self.DS03(down2_result)
-        x = self.DS03_layer00_cf(x)
-        x = self.DS03_layer00(x)
-        self.relu(x)
-        x = self.DS03_layer01(x)
-        self.relu(x)
-        x = self.DS03_layer02(x)
-        self.relu(x)
-        x = self.UPS03_layer00(x)
-        self.relu(x)
-        x = self.UPS03_layer01(x)
-        self.relu(x)
-        x = self.UPS03_layer02(x)
-        self.relu(x)
-        x = self.UPS03_layer03(x)
-        self.relu(x)
-
-        x = self.USP02(x)
-
-        # x = torch.add(x, 1, down2_result)
-        x = torch.add(x, down2_result, alpha=1)
-        del down2_result
-
-        x = self.US02_layer00(x)
-        self.relu(x)
-        x = self.US02_layer01(x)
-        self.relu(x)
-        x = self.US02_layer02(x)
-        self.relu(x)
-        x = self.USP01(x)
-        # x = torch.add(x, 1, down1_result)
-        x = torch.add(x, down1_result, alpha=1)
-
-        del down1_result
-
-        x = self.US01_layer00(x)
-        self.relu(x)
-        x = self.US01_layer01(x)
-        self.relu(x)
-        x = self.US01_layer02(x)
-        # y = torch.add(input, 1, x)
-        y = torch.add(input, x, alpha=1)
-
-        del x
-
-        return noise_level, y
-
-class fixed_loss(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, out_image, gt_image, est_noise, gt_noise, if_asym):
-        h_x = est_noise.size()[2]
-        w_x = est_noise.size()[3]
-        count_h = self._tensor_size(est_noise[:, :, 1:, :])
-        count_w = self._tensor_size(est_noise[:, :, :, 1:])
-        h_tv = torch.pow(
-            (est_noise[:, :, 1:, :] - est_noise[:, :, :h_x - 1, :]), 2).sum()
-        w_tv = torch.pow(
-            (est_noise[:, :, :, 1:] - est_noise[:, :, :, :w_x - 1]), 2).sum()
-        tvloss = h_tv / count_h + w_tv / count_w
-
-        # n = gt_noise - est_noise
-        # a = torch.abs(0.3 - F.relu(n))
-        # b = torch.pow(n, 2)
-        # torch.mul(a, b)
-        loss = torch.mean(torch.pow((out_image - gt_image), 2)) + \
-                if_asym * 0.5 * torch.mean(torch.mul(torch.abs(0.3 - F.relu(gt_noise - est_noise)), torch.pow(est_noise - gt_noise, 2))) + \
-                0.05 * tvloss
-        return loss
-
-    def _tensor_size(self, t):
-        return t.size()[1] * t.size()[2] * t.size()[3]
 
 def model_load(model, path):
     """Load model."""
@@ -201,8 +41,9 @@ def model_save(model, path):
     """Save model."""
     torch.save(model.state_dict(), path)
 
-def model_export():
-    """Export model to onnx."""
+
+def export_onnx_model():
+    """Export onnx model."""
 
     import onnx
     from onnx import optimizer
@@ -219,20 +60,21 @@ def model_export():
     # 2. Model export
     print("Export model ...")
     dummy_input = torch.randn(1, 3, 512, 512)
-    input_names = [ "input" ]
-    output_names = [ "noise_level", "output" ]
+
+    input_names = ["input"]
+    output_names = ["noise_level", "output"]
     # variable lenght axes
     dynamic_axes = {'input': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
-                'noise_level': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
-                'output': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'}}
+                    'noise_level': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'},
+                    'output': {0: 'batch_size', 1: 'channel', 2: "height", 3: 'width'}}
     torch.onnx.export(model, dummy_input, onnx_file,
-                    input_names=input_names, 
-                    output_names=output_names,
-                    verbose=True,
-                    opset_version=11,
-                    keep_initializers_as_inputs=True,
-                    export_params=True,
-                    dynamic_axes=dynamic_axes)
+                      input_names=input_names,
+                      output_names=output_names,
+                      verbose=True,
+                      opset_version=11,
+                      keep_initializers_as_inputs=True,
+                      export_params=True,
+                      dynamic_axes=dynamic_axes)
 
     # 3. Optimize model
     print('Checking model ...')
@@ -240,12 +82,32 @@ def model_export():
     onnx.checker.check_model(model)
 
     print("Optimizing model ...")
-    passes = ["extract_constant_to_initializer", "eliminate_unused_initializer"]
+    passes = ["extract_constant_to_initializer",
+              "eliminate_unused_initializer"]
     optimized_model = optimizer.optimize(model, passes)
     onnx.save(optimized_model, onnx_file)
 
     # 4. Visual model
     # python -c "import netron; netron.start('image_clean.onnx')"
+
+
+def export_torch_model():
+    """Export torch model."""
+
+    script_file = "output/image_clean.pt"
+    weight_file = "output/ImageClean.pth"
+
+    # 1. Load model
+    print("Loading model ...")
+    model = get_model()
+    model_load(model, weight_file)
+    model.eval()
+
+    # 2. Model export
+    print("Export model ...")
+    dummy_input = torch.randn(1, 3, 512, 512)
+    traced_script_module = torch.jit.trace(model, dummy_input)
+    traced_script_module.save(script_file)
 
 
 def get_model():
@@ -275,6 +137,7 @@ class Counter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
 
 def train_epoch(loader, model, optimizer, device, tag=''):
     """Trainning model ..."""
@@ -315,11 +178,7 @@ def train_epoch(loader, model, optimizer, device, tag=''):
 
             # Optimizer
             optimizer.zero_grad()
-            if os.environ["ENABLE_APEX"] == "YES":
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
+            loss.backward()
             optimizer.step()
 
         return total_loss.avg
@@ -361,6 +220,11 @@ def valid_epoch(loader, model, device, tag=''):
             valid_loss.update(loss_value, count)
             t.set_postfix(loss='{:.6f}'.format(valid_loss.avg))
             t.update(count)
+
+
+def model_device():
+    """First call model_setenv. """
+    return torch.device(os.environ["DEVICE"])
 
 
 def model_setenv():
@@ -410,7 +274,8 @@ def model_setenv():
 def enable_amp(x):
     """Init Automatic Mixed Precision(AMP)."""
     if os.environ["ENABLE_APEX"] == "YES":
-        x = amp.initialize(x, opt_level="O1")    
+        x = amp.initialize(x, opt_level="O1")
+
 
 def infer_perform():
     """Model infer performance ..."""
@@ -420,26 +285,28 @@ def infer_perform():
 
     model.eval()
     model = model.to(device)
+    enable_amp(model)
 
-    with tqdm(total=len(1000)) as t:
-        t.set_description(tag)
+    progress_bar = tqdm(total=100)
+    progress_bar.set_description("Test Inference Performance ...")
 
-        input = torch.randn(64, 3, 512, 512)
+    for i in range(100):
+        input = torch.randn(8, 3, 512, 512)
         input = input.to(device)
 
         with torch.no_grad():
             output = model(input)
 
-        t.update(1)
+        progress_bar.update(1)
 
 
 if __name__ == '__main__':
     """Test model ..."""
 
-    model_export()
-    # infer_perform()
+    model = get_model()
+    print(model)
 
-    # model = get_model()
-    # print(model)
+    export_torch_model()
+    export_onnx_model()
 
-    # Canon5D2_5_160_3200_plug_12_mean.JPG
+    infer_perform()

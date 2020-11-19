@@ -9,20 +9,25 @@
 # ***
 # ************************************************************************************/
 #
-import os
 import argparse
+import os
+
 import torch
 import torch.optim as optim
+
 from data import get_data
-from model import get_model, model_load, model_save, train_epoch, valid_epoch, enable_amp
+from model import (get_model, model_device, model_load, model_save,
+                   train_epoch, valid_epoch)
 
 if __name__ == "__main__":
     """Trainning model."""
-    
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outputdir', type=str, default="output", help="output directory")
-    parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpoint file")
-    parser.add_argument('--bs', type=int, default=10, help="batch size")
+    parser.add_argument('--outputdir', type=str,
+                        default="output", help="output directory")
+    parser.add_argument('--checkpoint', type=str,
+                        default="output/ImageClean.pth", help="checkpoint file")
+    parser.add_argument('--bs', type=int, default=8, help="batch size")
     parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
     parser.add_argument('--epochs', type=int, default=10)
     args = parser.parse_args()
@@ -35,7 +40,7 @@ if __name__ == "__main__":
     model = get_model()
 
     # CPU or GPU ?
-    device = torch.device(os.environ["DEVICE"])
+    device = model_device()
 
     model_load(model, args.checkpoint)
     model.to(device)
@@ -43,16 +48,15 @@ if __name__ == "__main__":
     # construct optimizer and learning rate scheduler,
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.1)
-
-    enable_amp(model)
-    enable_amp(optimizer)
+    lr_scheduler = optim.lr_scheduler.StepLR(
+        optimizer, step_size=1000, gamma=0.1)
 
     # get data loader
     train_dl, valid_dl = get_data(trainning=True, bs=args.bs)
 
     for epoch in range(args.epochs):
-        print("Epoch {}/{}, learning rate: ... {}".format(epoch + 1, args.epochs, lr_scheduler.get_last_lr()))
+        print("Epoch {}/{}, learning rate: ... {}".format(epoch +
+                                                          1, args.epochs, lr_scheduler.get_last_lr()))
 
         train_epoch(train_dl, model, optimizer, device, tag='train')
 
@@ -61,4 +65,5 @@ if __name__ == "__main__":
         lr_scheduler.step()
 
         if epoch == (args.epochs // 2) or (epoch == args.epochs - 1):
-            model_save(model, os.path.join(args.outputdir, "latest-checkpoint.pth"))
+            model_save(model, os.path.join(
+                args.outputdir, "latest-checkpoint.pth"))

@@ -9,34 +9,37 @@
 # ***
 # ************************************************************************************/
 #
-import os
-import glob
 import argparse
+import glob
+import os
+import pdb
+
 import torch
 import torchvision.transforms as transforms
 import torchvision.utils as utils
 from PIL import Image
-from model import get_model, model_load, enable_amp
 from tqdm import tqdm
-import pdb
+
+from model import enable_amp, get_model, model_device, model_load
 
 if __name__ == "__main__":
     """Predict."""
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--checkpoint', type=str, default="output/ImageClean.pth", help="checkpint file")
+    parser.add_argument('--checkpoint', type=str,
+                        default="output/ImageClean.pth", help="checkpint file")
     # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Canon5D2_*real.JPG", help="input image")
     # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Canon600D_*real.JPG", help="input image")
     # parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/NikonD800_*real.JPG", help="input image")
-    parser.add_argument('--input', type=str, default="dataset/Polyu/CroppedImages/Sony_*real.JPG", help="input image")
+    parser.add_argument(
+        '--input', type=str, default="dataset/Polyu/CroppedImages/Sony_*real.JPG", help="input image")
 
     args = parser.parse_args()
 
     model = get_model()
 
     # CPU or GPU ?
-    device = torch.device(os.environ["DEVICE"])
-
+    device = model_device()
 
     model_load(model, args.checkpoint)
     model.to(device)
@@ -48,7 +51,7 @@ if __name__ == "__main__":
     # toimage = transforms.ToPILImage()
 
     image_filenames = glob.glob(args.input)
-    progress_bar = tqdm(total = len(image_filenames))
+    progress_bar = tqdm(total=len(image_filenames))
 
     for index, filename in enumerate(image_filenames):
         progress_bar.update(1)
@@ -67,8 +70,10 @@ if __name__ == "__main__":
 
         output_tensor.clamp_(0, 1.0)
 
-        grid = utils.make_grid(torch.cat([gt_tensor, input_tensor, output_tensor], dim=0), nrow=3)
-        ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
+        grid = utils.make_grid(
+            torch.cat([gt_tensor, input_tensor, output_tensor], dim=0), nrow=3)
+        ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(
+            1, 2, 0).to('cpu', torch.uint8).numpy()
         image = Image.fromarray(ndarr)
         image.show()
 
