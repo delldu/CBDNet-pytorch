@@ -10,11 +10,88 @@
 // One-stop header.
 #include <torch/script.h>
 
-// headers for image
-#include "image.h"
+// headers for image, from /usr/local/include/nimage/nimage.h
+#include <nimage/image.h>
 
-#define IMAGE_SIZE 224
 #define CHANNELS 3
+// https://pytorch.org/cppdocs/notes/tensor_basics.html
+// https://pytorch.org/cppdocs/notes/tensor_creation.html
+
+// torch::Tensor tharray = torch::tensor({1, 2, 3, 4, 5}, {torch::kFloat64});
+// std::vector<int64_t>{3, 4, 5});
+
+int image_totensor(IMAGE *image, torch::Tensor *tensor)
+{
+	int i, j;
+
+	if (! image_valid(image)) {
+		syslog_error("Invalid image.");
+		return RET_ERROR;
+	}
+
+	// Suppose tensor with BxCxHxW (== 1x3xHxW) dimension
+	if (tensor->size(0) != 1 || tensor->size(1) != 3 || tensor->size(2) != image->height || tensor->size(3) != image->width) {
+		syslog_error("Size of image and tensor does not match.");
+		return RET_ERROR;
+	}
+
+	auto a = tensor->accessor<float, 4>();
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			a[0][0][i][j] = image->ie[i][j].r;
+		}
+	}
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			a[0][1][i][j] = image->ie[i][j].g;
+		}
+	}
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			a[0][2][i][j] = image->ie[i][j].b;
+		}
+	}
+	return RET_OK;
+}
+
+IMAGE *image_fromtensor(torch::Tensor *tensor)
+{
+	int i, j;
+	IMAGE *image;
+
+	// Suppose tensor with BxCxHxW (== 1x3xHxW) dimension
+	if (tensor->size(0) != 1 || tensor->size(1) != 3 || tensor->size(2) < 1 || tensor->size(3) < 1) {
+		syslog_error("Size of tensor is not valid.");
+		return NULL;
+	}
+
+	image = image_create(tensor->size(2), tensor->size(3)); CHECK_IMAGE(image);
+	auto a = tensor->accessor<float, 4>();
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			image->ie[i][j].r = (BYTE)a[0][0][i][j];
+		}
+	}
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			image->ie[i][j].g = (BYTE)a[0][1][i][j];
+		}
+	}
+	for (i = 0; i < image->height; i++) {
+		for (j = 0; j < image->width; j++) {
+			image->ie[i][j].b = (BYTE)a[0][2][i][j];
+		}
+	}
+
+	return image;
+}
+
+int cuda_available()
+{
+	// torch::cuda::is_available()	
+	return 1;
+}
+
 
 int main(int argc, const char *argv[])
 {
@@ -23,41 +100,63 @@ int main(int argc, const char *argv[])
 		return -1;
 	}
 
-	torch::jit::script::Module module;
+	torch::jit::script::Module model;
 	try {
-		module = torch::jit::load("imageclean.onnx");
+		model = torch::jit::load("image_clean.onnx");
 	}
-	catch(const c10::Error & e) {
+	catch(const c10::Error &e) {
 		std::cerr << "Loading model error." << std::endl;
 		return -1;
 	}
 
-	// to GPU
-	module.to(at::kCUDA);
+	if (cuda_available())
+		model.to(torch::kCUDA);
 
-	IMAGE *image = image_load((char *)argv[0]);
+	IMAGE *image = image_load((char *)argv[1]);
 	if (! image_valid(image)) {
 		std::cerr << "Loading image error." << std::endl;
 	}
+	std::cerr << "Image " << image->height << "x" << image->width << std::endl;
 
-	auto input_tensor = torch::from_blob(image_blob(image), { 1, IMAGE_SIZE, IMAGE_SIZE, CHANNELS });
-	input_tensor = input_tensor.div_(255.0);
+	// std::vector<int64_t>{1, 3, h, w});
+	std::vector<int64_t> input_size;
+	input_size.push_back(1);
+	input_size.push_back(3);
+	input_size.push_back(image->height);
+	input_size.push_back(image->width);
+	torch::Tensor input_tensor = torch::zeros(input_size);
 
-	// to GPU
-	input_tensor = input_tensor.to(at::kCUDA);
+	if (image_totensor(image, &input_tensor) == RET_OK) {
+	    std::vector<torch::jit::IValue> inputs;
 
-	// Test speed ...
-	for (int i = 0; i < 1000; i++) {
-		if (i % 100 == 0) {
+		if (cuda_available())
+		    inputs.push_back(input_tensor.to(torch::kCUDA));
+		else
+		    inputs.push_back(input_tensor);
+
+	    // Test performance ...
+		for (int i = 0; i < 10; i++) {
 			std::cout << i << " ... " << std::endl;
+			// model.forward( {input_tensor} ).toTensor();
+			model.forward(inputs);
 		}
-		module.forward( {input_tensor} ).toTensor();
+
+		auto outputs = model.forward(inputs).toTuple();
+		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
+		torch::Tensor clean_tensor = outputs->elements()[1].toTensor();
+
+		IMAGE *image;
+		if (cuda_available())
+			clean_tensor = clean_tensor.to(torch::kCPU);
+
+		image = image_fromtensor(&clean_tensor);check_image(image);
+		image_save(image, "result.png");
+		image_destroy(image);
+	}
+	else {
+		std::cerr << "Convert image to tensor error." << std::endl;
+		return -1;
 	}
 
-	torch::Tensor out_tensor;
-	out_tensor = module.forward( {input_tensor} ).toTensor();
-
-	// Save out_tensor to image file
-
-	image_destroy(image);
+	return 0;
 }

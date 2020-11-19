@@ -11,19 +11,20 @@ INSTALL_DIR := /usr/local
 TARGET := imageclean
 
 SOURCE :=  \
-	image.cpp \
 	prediction.cpp
 
-TORCH_INSTALL_DIR :=/usr/local/libtorch
+TORCH_INSTALL_DIR :=/opt/libtorch
 
 # INCS	:= $(shell pkg-config --cflags libtorch opencv)
 INCS := -D_GLIBCXX_USE_CXX11_ABI=1 -std=c++14 -std=gnu++14 -I${TORCH_INSTALL_DIR}/include
 
 # LIBS	:= $(shell pkg-config --libs libtorch opencv)
-LIBS := -Wl,--no-as-needed \
-	-L${TORCH_INSTALL_DIR}/lib \
+
+LIBS := \
+ 	-L${TORCH_INSTALL_DIR}/lib \
+    -Wl,--no-as-needed \
 	-lc10 -lc10_cuda -ltorch -ltorch_cuda -ltorch_cpu \
- 	-ljpeg -lpng
+ 	-lnimage -ljpeg -lpng -lm
 
 
 DEFINES :=
@@ -47,7 +48,7 @@ ${TARGET}: ${OBJECT}
 	${CXX} ${LDFLAGS} -o ${TARGET} ${OBJECT} ${LIBS}
 
 install:
-	${STRIP} ${TARGET}
+# 	${STRIP} ${TARGET}
 	install -m 755 ${TARGET} ${INSTALL_DIR}/bin
 
 #****************************************************************************

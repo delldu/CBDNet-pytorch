@@ -23,7 +23,7 @@ extern "C" {
 typedef struct {
 	DWORD magic;				// IMAGE_MAGIC
 	int height, width;			
-	BYTE *base;					// model: CxHxW
+	BYTE *base;				// model: CxHxW
 	BYTE **R, **G, **B;			// Channel RGB
 } IMAGE;
 
