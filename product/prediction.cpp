@@ -6,7 +6,6 @@
 ***
 ************************************************************************************/
 
-
 // One-stop header.
 #include <torch/script.h>
 
@@ -16,9 +15,6 @@
 #define CHANNELS 3
 // https://pytorch.org/cppdocs/notes/tensor_basics.html
 // https://pytorch.org/cppdocs/notes/tensor_creation.html
-
-// torch::Tensor tharray = torch::tensor({1, 2, 3, 4, 5}, {torch::kFloat64});
-// std::vector<int64_t>{3, 4, 5});
 
 int image_totensor(IMAGE *image, torch::Tensor *tensor)
 {
@@ -105,7 +101,7 @@ int main(int argc, const char *argv[])
 
 	torch::jit::script::Module model;
 	try {
-		model = torch::jit::load("image_clean.onnx");
+		model = torch::jit::load("image_clean.pt");
 	}
 	catch(const c10::Error &e) {
 		std::cerr << "Loading model error." << std::endl;
@@ -115,11 +111,15 @@ int main(int argc, const char *argv[])
 	if (cuda_available())
 		model.to(torch::kCUDA);
 
+	// Reduce GPU memory !!!
+    torch::NoGradGuard no_grad;
+
 	IMAGE *image = image_load((char *)argv[1]);
 	if (! image_valid(image)) {
 		std::cerr << "Loading image error." << std::endl;
 	}
-	std::cerr << "Image " << image->height << "x" << image->width << std::endl;
+
+	// std::cerr << "Image " << image->height << "x" << image->width << std::endl;
 
 	// std::vector<int64_t>{1, 3, h, w});
 	std::vector<int64_t> input_size;
@@ -138,11 +138,11 @@ int main(int argc, const char *argv[])
 	    inputs.push_back(input_tensor);
 
 	    // Test performance ...
-		for (int i = 0; i < 1000; i++) {
-			std::cout << i << " ... " << std::endl;
-			// model.forward( {input_tensor} ).toTensor();
-			model.forward(inputs);
-		}
+		// for (int i = 0; i < 1000; i++) {
+		// 	std::cout << i << " ... " << std::endl;
+		// 	// model.forward( {input_tensor} ).toTensor();
+		// 	model.forward(inputs);
+		// }
 
 		auto outputs = model.forward(inputs).toTuple();
 		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
