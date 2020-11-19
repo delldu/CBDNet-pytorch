@@ -36,15 +36,7 @@ int image_totensor(IMAGE *image, torch::Tensor *tensor)
 	for (i = 0; i < image->height; i++) {
 		for (j = 0; j < image->width; j++) {
 			a[0][0][i][j] = image->ie[i][j].r;
-		}
-	}
-	for (i = 0; i < image->height; i++) {
-		for (j = 0; j < image->width; j++) {
 			a[0][1][i][j] = image->ie[i][j].g;
-		}
-	}
-	for (i = 0; i < image->height; i++) {
-		for (j = 0; j < image->width; j++) {
 			a[0][2][i][j] = image->ie[i][j].b;
 		}
 	}
@@ -70,15 +62,7 @@ IMAGE *image_fromtensor(torch::Tensor *tensor)
 	for (i = 0; i < image->height; i++) {
 		for (j = 0; j < image->width; j++) {
 			image->ie[i][j].r = (BYTE)a[0][0][i][j];
-		}
-	}
-	for (i = 0; i < image->height; i++) {
-		for (j = 0; j < image->width; j++) {
 			image->ie[i][j].g = (BYTE)a[0][1][i][j];
-		}
-	}
-	for (i = 0; i < image->height; i++) {
-		for (j = 0; j < image->width; j++) {
 			image->ie[i][j].b = (BYTE)a[0][2][i][j];
 		}
 	}
@@ -91,9 +75,10 @@ int cuda_available()
 	return torch::cuda::is_available();	
 }
 
-
 int main(int argc, const char *argv[])
 {
+	IMAGE *image;
+
 	if (argc != 2) {
 		std::cerr << "Usage: " << argv[0] << " image" << std::endl;
 		return -1;
@@ -119,7 +104,7 @@ int main(int argc, const char *argv[])
 		std::cerr << "Loading image error." << std::endl;
 	}
 
-	// std::cerr << "Image " << image->height << "x" << image->width << std::endl;
+	std::cout << "Start cleaning " << argv[1] << " ... " << std::endl;
 
 	// std::vector<int64_t>{1, 3, h, w});
 	std::vector<int64_t> input_size;
@@ -148,7 +133,6 @@ int main(int argc, const char *argv[])
 		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
 		torch::Tensor clean_tensor = outputs->elements()[1].toTensor();
 
-		IMAGE *image;
 		if (cuda_available())
 			clean_tensor = clean_tensor.to(torch::kCPU);
 
