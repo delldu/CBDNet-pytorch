@@ -8,6 +8,7 @@
 
 // One-stop header.
 #include <torch/script.h>
+#include <torch/csrc/api/include/torch/cuda.h>
 
 // headers for image, from /usr/local/include/nimage/nimage.h
 #include <nimage/image.h>
@@ -87,8 +88,7 @@ IMAGE *image_fromtensor(torch::Tensor *tensor)
 
 int cuda_available()
 {
-	// return torch::cuda::is_available();	
-	return 1;
+	return torch::cuda::is_available();	
 }
 
 
