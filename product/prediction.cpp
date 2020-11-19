@@ -51,6 +51,8 @@ int image_totensor(IMAGE *image, torch::Tensor *tensor)
 			a[0][2][i][j] = image->ie[i][j].b;
 		}
 	}
+	tensor->div_(255.0);
+
 	return RET_OK;
 }
 
@@ -66,6 +68,7 @@ IMAGE *image_fromtensor(torch::Tensor *tensor)
 	}
 
 	image = image_create(tensor->size(2), tensor->size(3)); CHECK_IMAGE(image);
+	tensor->mul_(255.0);
 	auto a = tensor->accessor<float, 4>();
 	for (i = 0; i < image->height; i++) {
 		for (j = 0; j < image->width; j++) {
@@ -88,7 +91,7 @@ IMAGE *image_fromtensor(torch::Tensor *tensor)
 
 int cuda_available()
 {
-	// torch::cuda::is_available()	
+	// return torch::cuda::is_available();	
 	return 1;
 }
 
@@ -131,12 +134,11 @@ int main(int argc, const char *argv[])
 
 		if (cuda_available())
 			input_tensor = input_tensor.to(torch::kCUDA);
-		input_tensor.div_(255.0);
 
 	    inputs.push_back(input_tensor);
 
 	    // Test performance ...
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 1000; i++) {
 			std::cout << i << " ... " << std::endl;
 			// model.forward( {input_tensor} ).toTensor();
 			model.forward(inputs);
@@ -150,7 +152,6 @@ int main(int argc, const char *argv[])
 		if (cuda_available())
 			clean_tensor = clean_tensor.to(torch::kCPU);
 
-		clean_tensor.mul_(255.0);
 		image = image_fromtensor(&clean_tensor);check_image(image);
 		image_save(image, "result.jpg");
 		image_destroy(image);
