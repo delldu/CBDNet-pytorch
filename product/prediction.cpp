@@ -130,9 +130,10 @@ int main(int argc, const char *argv[])
 	    std::vector<torch::jit::IValue> inputs;
 
 		if (cuda_available())
-		    inputs.push_back(input_tensor.to(torch::kCUDA));
-		else
-		    inputs.push_back(input_tensor);
+			input_tensor = input_tensor.to(torch::kCUDA);
+		input_tensor.div_(255.0);
+
+	    inputs.push_back(input_tensor);
 
 	    // Test performance ...
 		for (int i = 0; i < 10; i++) {
@@ -149,8 +150,9 @@ int main(int argc, const char *argv[])
 		if (cuda_available())
 			clean_tensor = clean_tensor.to(torch::kCPU);
 
+		clean_tensor.mul_(255.0);
 		image = image_fromtensor(&clean_tensor);check_image(image);
-		image_save(image, "result.png");
+		image_save(image, "result.jpg");
 		image_destroy(image);
 	}
 	else {
