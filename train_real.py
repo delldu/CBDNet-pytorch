@@ -12,6 +12,7 @@ import cv2
 from utils import *
 from model import *
 
+import pdb
 
 def load_checkpoint(checkpoint_dir):
     if os.path.exists(checkpoint_dir + 'checkpoint.pth.tar'):

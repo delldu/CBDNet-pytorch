@@ -41,7 +41,6 @@ def model_save(model, path):
     """Save model."""
     torch.save(model.state_dict(), path)
 
-
 def export_onnx_model():
     """Export onnx model."""
 
@@ -281,7 +280,7 @@ def infer_perform():
     """Model infer performance ..."""
 
     model = get_model()
-    device = os.environ["DEVICE"]
+    device = model_device()
 
     model.eval()
     model = model.to(device)

@@ -158,59 +158,41 @@ class Camera(object):
         c, h, w = image.size(0), image.size(1), image.size(2)
 
         sigma_s = torch.randn(3)
-        if False:
-            sigma_s.uniform_(0.0, 0.16)
-        else:
-            sigma_s.fill_(0.0)
+        sigma_s.uniform_(0.0, 0.16)
 
         sigma_c = torch.randn(3)
-        if False:
-            sigma_c.uniform_(0.0, 0.06)
-        else:
-            sigma_c.fill_(10.0/255.0)
+        sigma_c.uniform_(0.0, 0.06)
 
         index = random.randint(0, 200)
 
         # Camera light noise
-        if False:
-            temp_x = self.irradiance(image, index)
-        else:
-            temp_x = image
+        temp_x = self.irradiance(image, index)
 
         # signal noise
         noise_s = torch.zeros_like(temp_x)
-        if False:
-            for ch in range(c):
-                noise_s[ch, :, :] = sigma_s[ch] * temp_x[ch, :, :]
-            noise_s = noise_s * torch.randn(noise_s.size())
-        else:
-            noise_s = torch.zeros_like(image)
+        for ch in range(c):
+            noise_s[ch, :, :] = sigma_s[ch] * temp_x[ch, :, :]
+        noise_s = noise_s * torch.randn(noise_s.size())
 
         # random noise
-        if False:
-            noise_c = torch.zeros_like(temp_x)
-            for ch in range(c):
-                noise_c[ch, :, :] = torch.normal(0, sigma_c[ch], (h, w))
-        else:
-            noise_c = 10.0/255.0*torch.randn(image.size())
-
-        # pdb.set_trace()
-        # noise = t + std * torch.randn(t.size())
+        noise_c = torch.zeros_like(temp_x)
+        for ch in range(c):
+            noise_c[ch, :, :] = torch.normal(0, sigma_c[ch], (h, w))
 
         temp_x_n = temp_x + noise_s + noise_c
-        if False:
-            temp_x = self.brightness(temp_x_n, index)
-        else:
-            temp_x = temp_x_n
+        temp_x = self.brightness(temp_x_n, index)
 
         # Camera sensor noise
         # self.brightness_plot(index)
-        temp_x.clamp_(0, 1.0)
+        # temp_x.clamp_(0, 1.0)
         bayer = self.encode_mosaic(temp_x)
         noise_image = self.decode_mosaic(bayer)
 
-        if True:
-            noise_image = image + noise_c
+        # xxxx9999
+        print("sigma_c: ", noise_c.std()*255.0)
+        print("sigma_s: ", noise_s.std()*255.0)
+        noise_image = image + noise_s
+
 
         noise_level = noise_image - image
 
@@ -224,7 +206,7 @@ def TensorNoiseLevel(t, patch_size=8):
         input: t -- Image CxHxW tensor, [0, 1.0]
     '''
     C, H, W = t.size()
-    stride = patch_size // 2 - 1
+    stride = patch_size // 2 + 1
     total_patch_size = C * patch_size * patch_size
 
     # Generate dataset
@@ -299,8 +281,8 @@ def TestMakeNoise(imagefile):
     # restruction.show()
 
 # TestCurveFit()
-TestMakeNoise("/tmp/lena.png")
-TestMakeNoise("/tmp/test.png")
+# TestMakeNoise("/tmp/lena.png")
+# TestMakeNoise("/tmp/test.png")
 
 TestMakeNoise("test/output/01_noise.png")
 TestMakeNoise("test/output/02_noise.png")

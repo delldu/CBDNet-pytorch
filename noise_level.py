@@ -42,11 +42,11 @@ class LaplaceFilter(nn.Module):
             3, 3, kernel_size=3, padding=1, groups=3, bias=False)
 
         # self.conv.bias.data.fill_(0.0)
-        self.conv.weight.data.fill_(0.0)
-        self.conv.weight.data[:, :, 0, 1] = -0.25
-        self.conv.weight.data[:, :, 1, 0] = -0.25
-        self.conv.weight.data[:, :, 1, 2] = -0.25
-        self.conv.weight.data[:, :, 2, 1] = -0.25
+        self.conv.weight.data.fill_(0.25)
+        self.conv.weight.data[:, :, 0, 1] = -0.50
+        self.conv.weight.data[:, :, 1, 0] = -0.50
+        self.conv.weight.data[:, :, 1, 2] = -0.50
+        self.conv.weight.data[:, :, 2, 1] = -0.50
         self.conv.weight.data[:, :, 1, 1] = 1.0
 
     def forward(self, x):
@@ -100,13 +100,16 @@ def ImageNoiseLevel(image_filename):
 
 	t = transforms.ToTensor()(img)
 	filter = LaplaceFilter()
-	gt = filter(t)
-	# delta = t - gt
-	sigma = TensorNoiseLevel(gt)
 
-	print("Raw image {} noise estimation is {:.4f}".format(image_filename, sigma))
+	# gt = filter(GaussFilter()(t))
+	sigma = TensorNoiseLevel(t)
+	laplace = filter(t)
+	laplace_sigma = laplace.abs().mean()*53.25*4.0
+	# torch.sqrt(3.14/72.0)*255.0
 
-	for i in range(1, 100, 5):
+	print("Raw image {} noise estimation is {:.4f}, laplace: {:.4f}".format(image_filename, sigma, laplace_sigma))
+
+	for i in [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100]:
 		std = i / 255.0
 		noise_c = std * torch.randn(t.size())
 		noise = t + noise_c
@@ -117,18 +120,24 @@ def ImageNoiseLevel(image_filename):
 
 		real_std = noise_c.std() * 255.0
 		noise.clamp_(0.0, 1.0)
-		noise = filter(noise)
+
+		# noise = filter(GaussFilter()(noise))
+		if i == 100:
+			laplace_image = transforms.ToPILImage()(noise)
+			laplace_image.show()
 
 		sigma = TensorNoiseLevel(noise)
+		laplace = filter(noise)
+		laplace_sigma = laplace.abs().mean()*53.25*4.0
 
-		print("{}: {} Noise Level: Real is {:.4f}, Estimation is {:.4f}".format(i, image_filename, real_std, sigma))
+		print("{}: {} Noise Level: Real is {:.4f}, Estimation is {:.4f}, {:.4f}".format(i, image_filename, real_std, sigma, laplace_sigma))
 		# if i == 100:
 		# 	noise_image = transforms.ToPILImage()(noise)
 		# 	noise_image.show()
 
 if __name__ == '__main__':
-	# ImageNoiseLevel("test/input/01_noise.png")
-	# ImageNoiseLevel("test/input/02_noise.png")
+	ImageNoiseLevel("test/input/01_noise.png")
+	ImageNoiseLevel("test/input/02_noise.png")
 	# ImageNoiseLevel("test/input/03_noise.png")
 	# ImageNoiseLevel("test/input/04_noise.png")
 	# ImageNoiseLevel("test/input/05_noise.png")
@@ -137,7 +146,7 @@ if __name__ == '__main__':
 	# ImageNoiseLevel("test/input/08_noise.png")
 	# ImageNoiseLevel("test/input/09_noise.png")
 
-	ImageNoiseLevel("/tmp/lena.png")
-	ImageNoiseLevel("/tmp/test.png")
+	# ImageNoiseLevel("/tmp/lena.png")
+	# ImageNoiseLevel("/tmp/test.png")
 
 	# ImageNoiseLevel(sys.argv[1])
