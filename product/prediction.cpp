@@ -105,7 +105,6 @@ int main(int argc, const char *argv[])
 	}
 
 	std::cout << "Start cleaning " << argv[1] << " ... " << std::endl;
-	time_reset();
 	// std::vector<int64_t>{1, 3, h, w});
 	std::vector<int64_t> input_size;
 	input_size.push_back(1);
@@ -116,7 +115,6 @@ int main(int argc, const char *argv[])
 
 	if (image_totensor(image, &input_tensor) == RET_OK) {
 	    std::vector<torch::jit::IValue> inputs;
-		time_spend((char *)"Image convert");
 
 		if (cuda_available())
 			input_tensor = input_tensor.to(torch::kCUDA);
@@ -124,11 +122,13 @@ int main(int argc, const char *argv[])
 	    inputs.push_back(input_tensor);
 
 	    // Test performance ...
-		// for (int i = 0; i < 1000; i++) {
-		// 	std::cout << i << " ... " << std::endl;
-		// 	// model.forward( {input_tensor} ).toTensor();
-		// 	model.forward(inputs);
-		// }
+		time_reset();
+		for (int i = 0; i < 10; i++) {
+			std::cout << i << " " << std::endl; 
+			// model.forward( {input_tensor} ).toTensor();
+			model.forward(inputs);
+		}
+		time_spend((char *)"Image cleaning 10 times");
 
 		auto outputs = model.forward(inputs).toTuple();
 		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
@@ -145,8 +145,6 @@ int main(int argc, const char *argv[])
 		std::cerr << "Convert image to tensor error." << std::endl;
 		return -1;
 	}
-
-	time_spend((char *)"Image cleaning");
 
 	return 0;
 }
