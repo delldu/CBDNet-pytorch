@@ -97,15 +97,15 @@ int main(int argc, const char *argv[])
 		model.to(torch::kCUDA);
 
 	// Reduce GPU memory !!!
-    torch::NoGradGuard no_grad;
+   	torch::NoGradGuard no_grad;
 
-	IMAGE *image = image_load((char *)argv[1]);
+	image = image_load((char *)argv[1]);
 	if (! image_valid(image)) {
 		std::cerr << "Loading image error." << std::endl;
 	}
 
 	std::cout << "Start cleaning " << argv[1] << " ... " << std::endl;
-
+	time_reset();
 	// std::vector<int64_t>{1, 3, h, w});
 	std::vector<int64_t> input_size;
 	input_size.push_back(1);
@@ -116,6 +116,7 @@ int main(int argc, const char *argv[])
 
 	if (image_totensor(image, &input_tensor) == RET_OK) {
 	    std::vector<torch::jit::IValue> inputs;
+		time_spend((char *)"Image convert");
 
 		if (cuda_available())
 			input_tensor = input_tensor.to(torch::kCUDA);
@@ -144,6 +145,8 @@ int main(int argc, const char *argv[])
 		std::cerr << "Convert image to tensor error." << std::endl;
 		return -1;
 	}
+
+	time_spend((char *)"Image cleaning");
 
 	return 0;
 }
