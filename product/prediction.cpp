@@ -9,9 +9,12 @@
 // One-stop header.
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/cuda.h>
+#include <cuda_runtime_api.h>
 
 // headers for image, from /usr/local/include/nimage/nimage.h
 #include <nimage/image.h>
+
+#include <getopt.h>
 
 #define CHANNELS 3
 // https://pytorch.org/cppdocs/notes/tensor_basics.html
@@ -75,18 +78,90 @@ int cuda_available()
 	return torch::cuda::is_available();	
 }
 
-int main(int argc, const char *argv[])
+int cuda_memory_log(const char *checkpoint)
 {
+    int id, gpu_id, num_gpus;
+    size_t free, total;
+    static size_t lastfree = 0;
+    double delta;
+
+    cudaGetDeviceCount(&num_gpus);
+
+    std::cout.setf(std::ios::fixed);
+    for (gpu_id = 0; gpu_id < num_gpus; gpu_id++) {
+        cudaSetDevice( gpu_id );
+        cudaGetDevice( &id );
+        cudaMemGetInfo( &free, &total );
+        std::cout << checkpoint << std::endl;
+
+        if (lastfree > 0) {
+        	delta = lastfree;
+        	delta -= free;
+        	delta /= (1024 * 1024);
+        } else {
+        	delta = 0.0;
+        }
+        std::cout << "    GPU " << id \
+        	<< " memory: free=" << std::setprecision(2) << (float)free/(1024.0*1024.0) \
+        	<< ", total=" << std::setprecision(2) << total/(1024.0*1024.0) \
+	    	<< ", delta=" << std::setprecision(2) << delta << " M" << std::endl;
+
+        lastfree = free;
+    }
+    return 0;
+}	
+
+void help(const char *cmd)
+{
+	printf("Usage: %s [option]\n", cmd);
+	printf("    -h, --help                   Display this help.\n");
+	printf("    -m, --model <model.pt>       Model file.\n");
+	printf("    -i, --input <image file>     Input image.\n");
+
+	exit(1);
+}
+
+int main(int argc, char *argv[])
+{
+	int optc;
+	int option_index = 0;
+	char *input_file = NULL;
+	char *model_file = NULL;
 	IMAGE *image;
 
-	if (argc != 2) {
-		std::cerr << "Usage: " << argv[0] << " image" << std::endl;
-		return -1;
+	const struct option long_opts[] = {
+		{ "help", 0, 0, 'h'},
+		{ "model", 1, 0, 'm'},
+		{ "input", 1, 0, 'i'},
+		{ 0, 0, 0, 0}
+	};
+
+	if (argc <= 1)
+		help(argv[0]);
+	
+	while ((optc = getopt_long(argc, argv, "h m: i:", long_opts, &option_index)) != EOF) {
+		switch (optc) {
+		case 'm':
+			model_file = optarg;
+			break;
+		case 'i':
+			input_file = optarg;
+			break;
+		case 'h':	// help
+		default:
+			help(argv[0]);
+			break;
+	    }
 	}
+
+	if (! model_file || ! input_file)
+		help(argv[0]);
+
+	cuda_memory_log("Program start ...");
 
 	torch::jit::script::Module model;
 	try {
-		model = torch::jit::load("image_clean.pt");
+		model = torch::jit::load(model_file);
 	}
 	catch(const c10::Error &e) {
 		std::cerr << "Loading model error." << std::endl;
@@ -95,16 +170,16 @@ int main(int argc, const char *argv[])
 
 	if (cuda_available())
 		model.to(torch::kCUDA);
+	cuda_memory_log("Model loading end ...");
 
 	// Reduce GPU memory !!!
    	torch::NoGradGuard no_grad;
 
-	image = image_load((char *)argv[1]);
+	image = image_load(input_file);
 	if (! image_valid(image)) {
 		std::cerr << "Loading image error." << std::endl;
 	}
 
-	std::cout << "Start cleaning " << argv[1] << " ... " << std::endl;
 	// std::vector<int64_t>{1, 3, h, w});
 	std::vector<int64_t> input_size;
 	input_size.push_back(1);
@@ -128,11 +203,12 @@ int main(int argc, const char *argv[])
 			// model.forward( {input_tensor} ).toTensor();
 			model.forward(inputs);
 		}
-		time_spend((char *)"Image cleaning 10 times");
+		time_spend((char *)"Model forward 10 times");
 
 		auto outputs = model.forward(inputs).toTuple();
 		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
 		torch::Tensor clean_tensor = outputs->elements()[1].toTensor();
+		cuda_memory_log("Model forward end ...");
 
 		if (cuda_available())
 			clean_tensor = clean_tensor.to(torch::kCPU);
@@ -145,6 +221,8 @@ int main(int argc, const char *argv[])
 		std::cerr << "Convert image to tensor error." << std::endl;
 		return -1;
 	}
+
+	cuda_memory_log("Program stop.");
 
 	return 0;
 }

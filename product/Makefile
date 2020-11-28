@@ -24,6 +24,7 @@ LIBS := \
  	-L${TORCH_INSTALL_DIR}/lib \
     -Wl,--no-as-needed \
 	-lc10 -lc10_cuda -ltorch -ltorch_cuda -ltorch_cpu \
+	-lcudart \
  	-lnimage -ljpeg -lpng -lm
 
 
