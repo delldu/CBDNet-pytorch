@@ -280,7 +280,8 @@ def infer_perform():
     """Model infer performance ..."""
 
     model = get_model()
-    device = model_device()
+
+
 
     model.eval()
     model = model.to(device)

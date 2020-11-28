@@ -205,15 +205,28 @@ int main(int argc, char *argv[])
 		}
 		time_spend((char *)"Model forward 10 times");
 
+#if 1
 		auto outputs = model.forward(inputs).toTuple();
-		torch::Tensor noise_tensor = outputs->elements()[0].toTensor();
-		torch::Tensor clean_tensor = outputs->elements()[1].toTensor();
+		auto elements = outputs->elements();
+		torch::Tensor noise_tensor = elements[0].toTensor();
+		torch::Tensor output_tensor = elements[elements.size() - 1].toTensor();
 		cuda_memory_log("Model forward end ...");
 
 		if (cuda_available())
-			clean_tensor = clean_tensor.to(torch::kCPU);
+			output_tensor = output_tensor.to(torch::kCPU);
 
-		image = image_fromtensor(&clean_tensor);check_image(image);
+		output_tensor = output_tensor.clamp(0.0, 1.0);
+		image = image_fromtensor(&output_tensor);check_image(image);
+#else
+		torch::Tensor output_tensor = model.forward(inputs).toTensor();
+		cuda_memory_log("Model forward end ...");
+
+		if (cuda_available())
+			output_tensor = output_tensor.to(torch::kCPU);
+
+		output_tensor = output_tensor.clamp(0.0, 1.0);
+		image = image_fromtensor(&output_tensor); check_image(image);
+#endif		
 		image_save(image, "result.jpg");
 		image_destroy(image);
 	}
