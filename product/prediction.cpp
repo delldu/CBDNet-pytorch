@@ -159,10 +159,36 @@ torch::Tensor lab2rgb(torch::Tensor &lab)
 torch::Tensor image_labencode(torch::Tensor &lab)
 {
 	// input: l in [0, 100], ab in [-110, 110]
+    // l_rs = (lab[:, [0], :, :] - 50.0)/100.0
+    // ab_rs = lab[:, 1:, :, :]/110.0
+	torch::Tensor L = xyz_int.slice(1, 0, 1, 1).squeeze(1); // [:, 0, :, :]
+	torch::Tensor AB = xyz_int.slice(1, 1, 3, 1).squeeze(1); // [:, 1:3, :, :]
+	L.sub_(50.0).div_(100.0);
+	AB.div_(110.0);
+	L.unsqueeze_(1); AB.unsqueeze_(1);
+	return torch::cat({L, AB}, /* dim = */1);
+}
+
+torch::Tensor image_labdecode(torch::Tensor &lab)
+{
+    // l = lab_rs[:, [0], :, :] * 100.0 + 50.0
+    // ab = lab_rs[:, 1:, :, :] * 110.0
+
+	torch::Tensor L = xyz_int.slice(1, 0, 1, 1).squeeze(1); // [:, 0, :, :]
+	torch::Tensor AB = xyz_int.slice(1, 1, 3, 1).squeeze(1); // [:, 1:3, :, :]
+	L.mul_(100.0).add_(50.0);
+	AB.mul_(110.0);
+	L.unsqueeze_(1); AB.unsqueeze_(1);
+
+	return torch::cat({L, AB}, /* dim = */1);
+}
+
+torch::Tensor video_labencode(torch::Tensor &lab)
+{
+	// input: l in [0, 100], ab in [-110, 110]
 	// l_rs = lab[:, [0], :, :]/100.0
 	// ab_rs = (lab[:, 1:, :, :] + 110.0)/220.0
 	// output = torch.cat((l_rs, ab_rs), dim=1)
-
 	torch::Tensor L = xyz_int.slice(1, 0, 1, 1).squeeze(1); // [:, 0, :, :]
 	torch::Tensor AB = xyz_int.slice(1, 1, 3, 1).squeeze(1); // [:, 1:3, :, :]
 	L.div_(100.0);
@@ -172,7 +198,7 @@ torch::Tensor image_labencode(torch::Tensor &lab)
 	return torch::cat({L, AB}, /* dim = */1);
 }
 
-torch::Tensor image_labdecode(torch::Tensor &lab)
+torch::Tensor video_labdecode(torch::Tensor &lab)
 {
 	// l = lab_rs[:, [0], :, :] * 100.0
 	// ab = (lab_rs[:, 1:, :, :]) * 220.0 - 110.0
@@ -185,16 +211,6 @@ torch::Tensor image_labdecode(torch::Tensor &lab)
 	L.unsqueeze_(1); AB.unsqueeze_(1);
 
 	return torch::cat({L, AB}, /* dim = */1);
-}
-
-torch::Tensor video_labencode(torch::Tensor &lab)
-{
-
-}
-
-torch::Tensor video_labdecode(torch::Tensor &lab)
-{
-
 }
 
 
