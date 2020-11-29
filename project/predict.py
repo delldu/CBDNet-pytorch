@@ -75,6 +75,4 @@ if __name__ == "__main__":
         ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(
             1, 2, 0).to('cpu', torch.uint8).numpy()
         image = Image.fromarray(ndarr)
-        image.show()
-
         image.save("output/image_{:02d}.jpg".format(index + 1))
